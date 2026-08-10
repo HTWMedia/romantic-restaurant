@@ -25,7 +25,7 @@ export class Kitchen {
   get currentDish(): Dish | null { return this._currentDish; }
 
   selectDish(dish: Dish | null): void {
-    if (this.busy) return;
+    if (this.busy || this._ready) return;
     this._currentDish = dish;
     this._ready = false;
     this.remain = dish ? this.cookTimeOf(dish) : 0;
