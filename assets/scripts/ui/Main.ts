@@ -80,7 +80,7 @@ export class Main extends Component {
     const dish = avail[Math.floor(Math.random() * avail.length)];
     const table = this.tables[this.customers.length % this.tables.length];
     const c = new CustomerView(
-      this.node, table.x + 220, 40, dish.name, dish.price,
+      this.node, table.x + 220, 40, dish,
       c2 => this.onCustomerLeave(c2),
     );
     this.customers.push(c);
@@ -97,11 +97,12 @@ export class Main extends Component {
     if (!this.kitchen.ready) return;
     const dish = this.kitchen.currentDish;
     if (!dish) return;
-    const waiting = this.customers.find(
-      c => c.state === 'ORDERING' && c.dishName === dish.name,
-    );
+    const waiting = this.customers.find(c => c.state === 'ORDERING' && c.dish.id === dish.id);
     if (waiting) {
       waiting.serve();
+      this.kitchen.collect();
+    } else {
+      // 没有顾客点这道菜：菜被浪费，清空厨房，提示一下
       this.kitchen.collect();
     }
   }

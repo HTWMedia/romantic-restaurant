@@ -1,5 +1,5 @@
 import { Color, Label, Node, UITransform, Graphics } from 'cc';
-import { CustomerState } from '../core/types';
+import { CustomerState, Dish } from '../core/types';
 import {
   DEFAULT_MAX_WAIT, MAX_SATISFACTION, paidAmount, satisfactionAfterWaiting,
 } from '../core/satisfaction';
@@ -14,16 +14,14 @@ export class CustomerView {
   private satBarScaleX = 1;
   private price = 0;
   private maxWait = DEFAULT_MAX_WAIT;
-  readonly dishName: string;
 
   constructor(
     parent: Node, x: number, y: number,
-    dishName: string, price: number,
+    readonly dish: Dish,
     private onLeave: (c: CustomerView) => void,
   ) {
     this.node = makeRect('customer', parent, 60, 80, x, y, COLOR.accent);
-    this.price = price;
-    this.dishName = dishName;
+    this.price = dish.price;
 
     const head = makeRect('head', this.node, 30, 30, 0, 25, COLOR.primary);
     head;
@@ -31,7 +29,7 @@ export class CustomerView {
     makeLabel('body', this.node, '🧑', 24, 0, 0);
 
     const bubble = makeNode('bubble', this.node, 70, 30, 55, 30);
-    makeLabel('want', bubble, dishName, 14, 0, 0, COLOR.text);
+    makeLabel('want', bubble, dish.name, 14, 0, 0, COLOR.text);
 
     this.satBar = makeRect('sat', this.node, 60, 6, 0, -48, COLOR.green);
   }
@@ -59,6 +57,10 @@ export class CustomerView {
       }
     } else if (this._state === CustomerState.LEAVING) {
       this.node.setPosition(this.node.position.x - 200 * dt, this.node.position.y);
+      // 走出屏幕左侧后通知 Main 收钱并移除
+      if (this.node.position.x < -500) {
+        this.onLeave(this);
+      }
     }
     this.updateSatBar();
   }
@@ -70,6 +72,7 @@ export class CustomerView {
   }
 
   private updateSatBar(): void {
+    if (!this.satBar.isValid) return;
     const g = this.satBar.getComponent(Graphics)!;
     g.clear();
     g.fillColor = this.satisfaction > 50 ? COLOR.green : this.satisfaction > 25 ? COLOR.accent : COLOR.red;
@@ -79,6 +82,7 @@ export class CustomerView {
   }
 
   markGone(): void {
+    if (this._state === CustomerState.GONE) return;
     this._state = CustomerState.GONE;
     this.node.destroy();
   }
