@@ -1,0 +1,13 @@
+{
+  "name": "romantic-restaurant",
+  "uuid": "e00a5a4b-654e-42d2-ba7d-4e6eb9238909",
+  "creator": {
+    "version": "3.8.8"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}
