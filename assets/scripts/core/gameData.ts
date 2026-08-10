@@ -1,0 +1,126 @@
+import { DISHES } from './dishes';
+import { SaveData } from './types';
+
+export const SAVE_VERSION = 1;
+export const TABLE_LEVEL_MAX = 5;
+export const KITCHEN_LEVEL_MAX = 5;
+export const TABLE_BASE_COST = 100;
+export const KITCHEN_BASE_COST = 150;
+export const KITCHEN_TIME_REDUCTION = 0.85;
+export const COOK_TIME_FLOOR = 1;
+
+export function tableUpgradeCost(level: number): number {
+  return TABLE_BASE_COST * level * level;
+}
+
+export function kitchenUpgradeCost(level: number): number {
+  return KITCHEN_BASE_COST * level * level;
+}
+
+export function cookTimeAtLevel(baseTime: number, kitchenLevel: number): number {
+  let t = baseTime;
+  for (let i = 1; i < kitchenLevel; i++) t *= KITCHEN_TIME_REDUCTION;
+  return Math.max(COOK_TIME_FLOOR, Math.round(t));
+}
+
+export function tableCountAtLevel(level: number): number {
+  return Math.max(1, level);
+}
+
+export function createDefaultSave(): SaveData {
+  return {
+    version: SAVE_VERSION,
+    coins: 100,
+    unlockedDishIds: DISHES.filter(d => d.unlockCost === 0).map(d => d.id),
+    tableLevel: 1,
+    kitchenLevel: 1,
+    totalRevenue: 0,
+  };
+}
+
+export class GameData {
+  coins: number;
+  unlockedDishIds: string[];
+  tableLevel: number;
+  kitchenLevel: number;
+  totalRevenue: number;
+
+  constructor(save?: SaveData | null) {
+    const base = save ?? createDefaultSave();
+    this.coins = base.coins;
+    this.unlockedDishIds = [...base.unlockedDishIds];
+    this.tableLevel = base.tableLevel;
+    this.kitchenLevel = base.kitchenLevel;
+    this.totalRevenue = base.totalRevenue;
+  }
+
+  get availableDishes(): typeof DISHES {
+    return DISHES.filter(d => this.unlockedDishIds.includes(d.id));
+  }
+
+  dishUnlocked(id: string): boolean {
+    return this.unlockedDishIds.includes(id);
+  }
+
+  earn(amount: number): void {
+    this.coins += Math.max(0, Math.round(amount));
+    this.totalRevenue += Math.max(0, Math.round(amount));
+  }
+
+  canSpend(amount: number): boolean {
+    return this.coins >= amount;
+  }
+
+  spend(amount: number): boolean {
+    if (!this.canSpend(amount)) return false;
+    this.coins -= amount;
+    return true;
+  }
+
+  canUnlockDish(id: string): boolean {
+    const dish = DISHES.find(d => d.id === id);
+    if (!dish || dish.unlockCost === 0) return false;
+    return !this.dishUnlocked(id) && this.canSpend(dish.unlockCost);
+  }
+
+  unlockDish(id: string): boolean {
+    const dish = DISHES.find(d => d.id === id);
+    if (!dish || !this.canUnlockDish(id)) return false;
+    this.spend(dish.unlockCost);
+    this.unlockedDishIds.push(id);
+    return true;
+  }
+
+  canUpgradeTable(): boolean {
+    return this.tableLevel < TABLE_LEVEL_MAX && this.canSpend(tableUpgradeCost(this.tableLevel));
+  }
+
+  upgradeTable(): boolean {
+    if (!this.canUpgradeTable()) return false;
+    this.spend(tableUpgradeCost(this.tableLevel));
+    this.tableLevel++;
+    return true;
+  }
+
+  canUpgradeKitchen(): boolean {
+    return this.kitchenLevel < KITCHEN_LEVEL_MAX && this.canSpend(kitchenUpgradeCost(this.kitchenLevel));
+  }
+
+  upgradeKitchen(): boolean {
+    if (!this.canUpgradeKitchen()) return false;
+    this.spend(kitchenUpgradeCost(this.kitchenLevel));
+    this.kitchenLevel++;
+    return true;
+  }
+
+  toSave(): SaveData {
+    return {
+      version: SAVE_VERSION,
+      coins: this.coins,
+      unlockedDishIds: [...this.unlockedDishIds],
+      tableLevel: this.tableLevel,
+      kitchenLevel: this.kitchenLevel,
+      totalRevenue: this.totalRevenue,
+    };
+  }
+}
