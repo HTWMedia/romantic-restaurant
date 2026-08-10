@@ -18,6 +18,7 @@ export class CustomerView {
   constructor(
     parent: Node, x: number, y: number,
     readonly dish: Dish,
+    readonly tableIndex: number,
     private onLeave: (c: CustomerView) => void,
   ) {
     this.node = makeRect('customer', parent, 60, 80, x, y, COLOR.accent);

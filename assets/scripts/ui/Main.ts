@@ -28,7 +28,6 @@ export class Main extends Component {
   private tables: { node: import('cc').Node; x: number }[] = [];
   private customers: CustomerView[] = [];
   private spawnTimer = 2;
-  private occupiedTables = 0;
 
   onLoad(): void {
     this.storage = new StorageService(new BrowserKVStore());
@@ -59,6 +58,7 @@ export class Main extends Component {
   }
 
   private buildTables(): void {
+    for (const t of this.tables) t.node.destroy();
     const count = tableCountAtLevel(this.data.tableLevel);
     this.tables = [];
     const startX = -((count - 1) * 130) / 2;
@@ -78,9 +78,15 @@ export class Main extends Component {
 
     const avail = this.data.availableDishes;
     const dish = avail[Math.floor(Math.random() * avail.length)];
-    const table = this.tables[this.customers.length % this.tables.length];
+    // 找一个还没有顾客占用的桌位
+    let tableIndex = -1;
+    for (let i = 0; i < this.tables.length; i++) {
+      if (!this.customers.some(c => c.tableIndex === i)) { tableIndex = i; break; }
+    }
+    if (tableIndex < 0) return;
+    const table = this.tables[tableIndex];
     const c = new CustomerView(
-      this.node, table.x + 220, 40, dish,
+      this.node, table.x + 220, 40, dish, tableIndex,
       c2 => this.onCustomerLeave(c2),
     );
     this.customers.push(c);
