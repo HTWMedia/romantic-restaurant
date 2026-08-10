@@ -1,4 +1,4 @@
-import { _decorator, Component } from 'cc';
+import { _decorator, Component, Color, Graphics } from 'cc';
 import { GameData } from '../core/gameData';
 import { StorageService, BrowserKVStore } from '../core/storage';
 import { dishById, DISHES } from '../core/dishes';
@@ -11,7 +11,7 @@ import { Kitchen } from './Kitchen';
 import { HudView } from './HudView';
 import { MenuView } from './MenuView';
 import { UpgradeView } from './UpgradeView';
-import { COLOR, makeRect } from './Widgets';
+import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
 
 const { ccclass } = _decorator;
 
@@ -34,6 +34,7 @@ export class Main extends Component {
     this.data = new GameData(this.storage.load());
 
     makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
+    this.buildDecor();
 
     this.buildTables();
     this.kitchen = new Kitchen(this.node, 360, -80, d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel));
@@ -64,9 +65,44 @@ export class Main extends Component {
     const startX = -((count - 1) * 130) / 2;
     for (let i = 0; i < count; i++) {
       const x = startX + i * 130;
-      const node = makeRect(`table-${i}`, this.node, 90, 40, x, -40, COLOR.panel);
+      const node = makeNode(`table-${i}`, this.node, 90, 40, x, -40);
+      const g = node.addComponent(Graphics);
+      // 桌面
+      g.fillColor = COLOR.panel;
+      g.roundRect(-45, -18, 90, 18, 8);
+      g.fill();
+      g.lineWidth = 2;
+      g.strokeColor = COLOR.border;
+      g.stroke();
+      // 桌面高光
+      g.fillColor = new Color(255, 255, 255, 60);
+      g.roundRect(-40, -14, 80, 4, 2);
+      g.fill();
+      // 桌腿
+      g.fillColor = COLOR.decor;
+      g.rect(-38, -22, 8, 10);
+      g.fill();
+      g.rect(30, -22, 8, 10);
+      g.fill();
       this.tables.push({ node, x });
     }
+  }
+
+  private buildDecor(): void {
+    // 地板线
+    const floor = makeNode('floor', this.node, 960, 4, 0, -60);
+    const fg = floor.addComponent(Graphics);
+    fg.fillColor = COLOR.decor;
+    fg.rect(-480, -2, 960, 4);
+    fg.fill();
+
+    // 挂画
+    const pic = roundRect('pic', this.node, 60, 50, -420, 200, 8, COLOR.panel, COLOR.border);
+    makeLabel('pic-content', pic, '🌻', 30, 0, 0);
+
+    // 两侧绿植
+    makeLabel('plant-l', this.node, '🪴', 44, -450, -30, COLOR.text);
+    makeLabel('plant-r', this.node, '🪴', 44, 450, -30, COLOR.text);
   }
 
   private updateSpawn(dt: number): void {
