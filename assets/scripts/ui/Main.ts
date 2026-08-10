@@ -38,9 +38,19 @@ export class Main extends Component {
 
     this.buildTables();
     this.kitchen = new Kitchen(this.node, 360, -80, d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel));
-    this.hud = new HudView(this.node, () => this.upgrade.open());
+    this.hud = new HudView(this.node, () => {
+      this.upgrade.open();
+      this.refreshUpgrade();
+    });
     this.menu = new MenuView(this.node,
-      id => this.kitchen.selectDish(dishById(id) ?? null),
+      id => {
+        this.kitchen.selectDish(dishById(id) ?? null);
+        this.menu.rebuild(
+          this.data.availableDishes,
+          DISHES.filter(d => !this.data.dishUnlocked(d.id)),
+          this.data.coins,
+        );
+      },
       id => { if (this.data.unlockDish(id)) this.refreshAll(); },
     );
     this.upgrade = new UpgradeView(this.node, {
