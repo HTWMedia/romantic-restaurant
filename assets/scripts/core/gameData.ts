@@ -49,6 +49,7 @@ export function createDefaultSave(): SaveData {
     energy: ENERGY_MAX,
     ownedSkinIds: ['classic'],
     activeSkinId: 'classic',
+    mergeGrid: [],
   };
 }
 
@@ -65,6 +66,7 @@ export class GameData {
   energy: number;
   ownedSkinIds: string[];
   activeSkinId: string;
+  mergeGrid: (string | null)[] = [];
 
   constructor(save?: SaveData | null) {
     const base = save ?? createDefaultSave();
@@ -80,6 +82,7 @@ export class GameData {
     this.energy = (base as any).energy ?? ENERGY_MAX;
     this.ownedSkinIds = (base as any).ownedSkinIds ?? ['classic'];
     this.activeSkinId = (base as any).activeSkinId ?? 'classic';
+    this.mergeGrid = (base as any).mergeGrid ?? [];
   }
 
   get availableDishes(): typeof DISHES {
@@ -115,6 +118,13 @@ export class GameData {
     const dish = DISHES.find(d => d.id === id);
     if (!dish || !this.canUnlockDish(id)) return false;
     this.spend(dish.unlockCost);
+    this.unlockedDishIds.push(id);
+    return true;
+  }
+
+  mergeUnlockDish(id: string): boolean {
+    const dish = DISHES.find(d => d.id === id);
+    if (!dish || this.dishUnlocked(id)) return false;
     this.unlockedDishIds.push(id);
     return true;
   }
@@ -176,6 +186,7 @@ export class GameData {
       energy: this.energy,
       ownedSkinIds: [...this.ownedSkinIds],
       activeSkinId: this.activeSkinId,
+      mergeGrid: this.mergeGrid,
     };
   }
 }

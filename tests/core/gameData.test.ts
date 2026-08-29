@@ -66,3 +66,21 @@ describe('GameData', () => {
     expect(kitchenUpgradeCost(1)).toBe(150);
   });
 });
+
+describe('merge unlock + grid persistence', () => {
+  it('mergeUnlockDish 免费解锁且不扣金币', () => {
+    const g = new GameData();
+    const before = g.coins;
+    expect(g.dishUnlocked('pizza')).toBe(false);
+    expect(g.mergeUnlockDish('pizza')).toBe(true);
+    expect(g.dishUnlocked('pizza')).toBe(true);
+    expect(g.coins).toBe(before);
+    expect(g.mergeUnlockDish('pizza')).toBe(false);
+  });
+  it('mergeGrid 持久化往返', () => {
+    const g = new GameData();
+    g.mergeGrid = ['m-veg', null, 'm-pizza', null];
+    const g2 = new GameData(g.toSave());
+    expect(g2.mergeGrid).toEqual(['m-veg', null, 'm-pizza', null]);
+  });
+});

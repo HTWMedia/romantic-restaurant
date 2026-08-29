@@ -28,4 +28,5 @@ export interface SaveData {
   energy: number;         // 当前体力
   ownedSkinIds: string[]; // 已拥有的皮肤
   activeSkinId: string;   // 当前使用的皮肤
+  mergeGrid?: (string | null)[];   // 合成台各格物品 id，按格序
 }
