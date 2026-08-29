@@ -7,6 +7,7 @@ export class DialogueView {
   private overlay!: Node;
   private panel!: Node;
   private avatar!: Label;
+  private avatarFrameRef: Node | null = null;
   private nameL!: Label;
   private textL!: Label;
   private lines: DialogueLine[] = [];
@@ -39,9 +40,20 @@ export class DialogueView {
 
   private render(): void {
     const l = this.lines[this.idx];
-    this.avatar.string = l.emoji;
     this.nameL.string = l.who;
     this.textL.string = l.text;
+    if (this.avatarFrameRef) {
+      this.avatarFrameRef.destroy();
+      this.avatarFrameRef = null;
+    }
+    const head = ArtService.makeSprite(this.panel, l.artKey, 120, 120, -300, 0, 'dlg-avatar-art');
+    if (head) {
+      this.avatar.node.active = false;
+      this.avatarFrameRef = head;
+    } else {
+      this.avatar.node.active = true;
+      this.avatar.string = l.emoji;
+    }
   }
 
   private next(): void {
