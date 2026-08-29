@@ -19,6 +19,7 @@ import { CHAPTERS } from '../core/chapters';
 import { skinById } from '../core/skins';
 import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 import { Sfx } from '../services/Sfx';
 
 const { ccclass } = _decorator;
@@ -27,6 +28,7 @@ const { ccclass } = _decorator;
 export class Main extends Component {
   private data!: GameData;
   private storage!: StorageService;
+  private ready = false;
 
   private hud!: HudView;
   private menu!: MenuView;
@@ -50,7 +52,14 @@ export class Main extends Component {
   onLoad(): void {
     this.storage = new StorageService(new BrowserKVStore());
     this.data = new GameData(this.storage.load());
+    void ArtService.preload().then(() => {
+      if (!this.isValid || !this.node.isValid) return;
+      this.buildGame();
+      this.ready = true;
+    });
+  }
 
+  private buildGame(): void {
     makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
     this.buildDecor();
     this.buildTables();
@@ -117,6 +126,7 @@ export class Main extends Component {
   }
 
   update(dt: number): void {
+    if (!this.ready) return;
     this.updateSpawn(dt);
     this.kitchen.update(dt);
     this.serveIfReady();
