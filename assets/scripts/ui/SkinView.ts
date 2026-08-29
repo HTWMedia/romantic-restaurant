@@ -21,7 +21,8 @@ export class SkinView {
 
     this.panel = ArtService.panelWithArt('skin-panel', parent, 'panel-popup', 560, 420, 0, 0);
     this.panel.active = false;
-    makeLabel('skin-title', this.panel, '🎨 装修小店', 24, 0, 175, COLOR.text);
+    const skinTitleIcon = ArtService.attachIconSprite(this.panel, 'icon-brush', -86, 175, 28);
+    makeLabel('skin-title', this.panel, `${skinTitleIcon ? '' : '🎨 '}装修小店`, 24, skinTitleIcon ? -12 : 0, 175, COLOR.text);
     this.list = makeNode('skin-list', this.panel, 500, 300, 0, -10);
 
     const close = makeRect('skin-close', this.panel, 40, 40, 260, 190, COLOR.panel);

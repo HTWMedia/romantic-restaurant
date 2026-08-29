@@ -40,7 +40,8 @@ export class MenuView {
         afford ? COLOR.accent : COLOR.border,
       );
       card.addComponent(Button);
-      const nameL = makeLabel('name', card, `🔒 ${d.name}`, 14, 0, 14, COLOR.subtext);
+      const lockIcon = ArtService.attachIconSprite(card, 'icon-lock', -46, -4, 18);
+      const nameL = makeLabel('name', card, `${lockIcon ? '' : '🔒 '}${d.name}`, 14, lockIcon ? 8 : 0, 14, COLOR.subtext);
       nameL.isBold = true;
       makeLabel('price', card, `${d.unlockCost} 🪙`, 12, 0, -18, afford ? COLOR.accent : COLOR.subtext);
       card.on(Button.EventType.CLICK, () => this.onTryUnlock(d.id));

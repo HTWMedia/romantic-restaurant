@@ -19,11 +19,17 @@ export class ChapterView {
 
     this.panel = ArtService.panelWithArt('ch-panel', parent, 'panel-popup', 560, 400, 0, 0);
     this.panel.active = false;
-    makeLabel('ch-title', this.panel, '📖 经营目标', 24, 0, 160, COLOR.text);
+    const chTitleIcon = ArtService.attachIconSprite(this.panel, 'icon-chapter', -86, 160, 28);
+    makeLabel('ch-title', this.panel, `${chTitleIcon ? '' : '📖 '}经营目标`, 24, chTitleIcon ? -12 : 0, 160, COLOR.text);
     this.subL = makeLabel('ch-sub', this.panel, '', 18, 0, 120, COLOR.primary);
     this.goalsBox = makeNode('ch-goals', this.panel, 500, 200, 0, 10);
     this.rewardL = makeLabel('ch-reward', this.panel, '', 16, 0, -110, COLOR.accent);
-    pillButton('ch-replay', this.panel, 200, 40, 0, -160, COLOR.primary, '重看剧情 ▶', () => this.onReplayIntro());
+    const replay = pillButton('ch-replay', this.panel, 200, 40, 0, -160, COLOR.primary,
+      '重看剧情 ▶', () => this.onReplayIntro());
+    if (ArtService.attachIconSprite(replay, 'icon-replay', -62, 0, 22)) {
+      const lbl = replay.getComponentInChildren(Label);
+      if (lbl) lbl.string = '重看剧情';
+    }
 
     const close = makeRect('ch-close', this.panel, 40, 40, 260, 175, COLOR.panel);
     close.addComponent(Button);

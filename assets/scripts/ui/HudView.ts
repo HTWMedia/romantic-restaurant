@@ -19,22 +19,29 @@ export class HudView {
   private energyBtn!: Node;
   private energyLabel!: Label;
   private lastCoins = -1;
+  private energyHasIcon = false;
+  private custHasIcon = false;
 
   constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void) {
     ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
     // 金币徽章块
     roundRect('coin-badge', parent, 150, 38, -410, 293, 19, new Color(255, 201, 77, 60));
-    makeLabel('coin-icon', parent, '🪙', 20, -460, 293, COLOR.accent);
+    const coinIcon = ArtService.attachIconSprite(parent, 'icon-coin', -460, 293, 26);
+    if (!coinIcon) makeLabel('coin-icon', parent, '🪙', 20, -460, 293, COLOR.accent);
     this.coinsLabel = makeLabel('coins', parent, '0', 20, -370, 293, COLOR.text);
     this.coinsLabel.isBold = true;
 
     // 体力按钮（点=看广告恢复）
-    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -270, 293, COLOR.primary, '⚡ 12/12', adCb);
+    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -270, 293, COLOR.primary, '12/12', adCb);
     this.energyLabel = this.energyBtn.getComponentInChildren(Label)!;
+    const energyIcon = ArtService.attachIconSprite(this.energyBtn, 'icon-energy', -38, 0, 26);
+    this.energyHasIcon = energyIcon !== null;
 
     // 在店人数
-    this.custLabel = makeLabel('customers', parent, '🧑 在店 0', 18, -100, 293, COLOR.text);
+    const custIcon = ArtService.attachIconSprite(parent, 'icon-customer', -128, 293, 24);
+    this.custHasIcon = custIcon !== null;
+    this.custLabel = makeLabel('customers', parent, '在店 0', 18, -112, 293, COLOR.text);
 
     // 等级标签
     this.tableLevelLabel = this.tag(parent, '桌 L1', 170);
@@ -44,18 +51,20 @@ export class HudView {
     this.comboLabel.isBold = true;
     this.comboLabel.node.active = false;
 
-    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 335, 293, COLOR.accent, '📖 第1章', chapterCb);
+    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 335, 293, COLOR.accent, '第1章', chapterCb);
+    ArtService.attachIconSprite(this.chapterBtn, 'icon-chapter', -30, 0, 24);
 
     pillButton('upgrade-btn', parent, 90, 34, 435, 293, COLOR.primary, '升级', upgradeCb);
   }
 
   setChapter(index: number, total: number, stars: number): void {
     const label = this.chapterBtn.getComponentInChildren(Label)!;
-    label.string = `📖 第${index + 1}/${total}章 ⭐${stars}`;
+    label.string = `${ArtService.hasArt('icon-chapter') ? '' : '📖 '}第${index + 1}/${total}章 ⭐${stars}`;
   }
 
   setEnergy(cur: number, max: number): void {
-    this.energyLabel.string = cur <= 0 ? '⚡ 看广告恢复' : `⚡ ${cur}/${max}`;
+    const base = cur <= 0 ? '看广告恢复' : `${cur}/${max}`;
+    this.energyLabel.string = this.energyHasIcon ? base : `⚡ ${base}`;
   }
 
   setCombo(combo: number, mult: number): void {
@@ -85,7 +94,7 @@ export class HudView {
         .to(0.12, { scale: new Vec3(1, 1, 1) })
         .start();
     }
-    this.custLabel.string = `🧑 在店 ${d.customers}`;
+    this.custLabel.string = `${this.custHasIcon ? '' : '🧑 '}在店 ${d.customers}`;
     this.tableLevelLabel.string = `桌 L${d.tableLevel}`;
     this.kitchenLevelLabel.string = `厨 L${d.kitchenLevel}`;
   }

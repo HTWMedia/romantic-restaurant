@@ -36,17 +36,25 @@ export class UpgradeView {
 
     this.tableBtn = roundRect('tb', this.panel, 220, 80, -120, -20, 14, COLOR.panel, COLOR.border);
     this.tableBtn.addComponent(Button);
-    makeLabel('tb-icon', this.tableBtn, '🪑', 28, -80, 0, COLOR.text);
+    if (!ArtService.attachIconSprite(this.tableBtn, 'icon-chair', -80, 0, 30))
+      makeLabel('tb-icon', this.tableBtn, '🪑', 28, -80, 0, COLOR.text);
     this.tableLabel = makeLabel('tb-info', this.tableBtn, '', 14, 10, 0, COLOR.text);
     this.tableBtn.on(Button.EventType.CLICK, () => this.cb.onUpgradeTable());
 
     this.kitchenBtn = roundRect('kb', this.panel, 220, 80, 120, -20, 14, COLOR.panel, COLOR.border);
     this.kitchenBtn.addComponent(Button);
-    makeLabel('kb-icon', this.kitchenBtn, '⚡', 28, -80, 0, COLOR.text);
+    if (!ArtService.attachIconSprite(this.kitchenBtn, 'icon-kitchen', -80, 0, 30))
+      makeLabel('kb-icon', this.kitchenBtn, '⚡', 28, -80, 0, COLOR.text);
     this.kitchenLabel = makeLabel('kb-info', this.kitchenBtn, '', 14, 10, 0, COLOR.text);
     this.kitchenBtn.on(Button.EventType.CLICK, () => this.cb.onUpgradeKitchen());
 
-    pillButton('skin-entry', this.panel, 440, 40, 0, -120, COLOR.accent, '🎨 装修小店', () => this.cb.onSkins());
+    const entry = pillButton('skin-entry', this.panel, 440, 40, 0, -120, COLOR.accent,
+      '🎨 装修小店', () => this.cb.onSkins());
+    const brushIcon = ArtService.attachIconSprite(entry, 'icon-brush', -120, 0, 26);
+    if (brushIcon) {
+      const lbl = entry.getComponentInChildren(Label);
+      if (lbl) lbl.string = '装修小店';
+    }
 
     // 右上角 ✕ 关闭
     const closeBtn = makeRect('close-btn', this.panel, 40, 40, 230, 135, COLOR.panel);

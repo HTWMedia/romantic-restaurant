@@ -18,7 +18,8 @@ export class AdView {
     this.overlay.on(Node.EventType.TOUCH_START, () => {});
     this.panel = ArtService.panelWithArt('ad-panel', parent, 'panel-popup', 480, 280, 0, 0);
     this.panel.active = false;
-    makeLabel('ad-icon', this.panel, '📺', 60, 0, 70, COLOR.text);
+    if (!ArtService.attachIconSprite(this.panel, 'icon-ad', 0, 70, 64))
+      makeLabel('ad-icon', this.panel, '📺', 60, 0, 70, COLOR.text);
     this.titleL = makeLabel('ad-title', this.panel, '', 22, 0, 10, COLOR.text);
     this.titleL.isBold = true;
     this.countL = makeLabel('ad-count', this.panel, '', 44, 0, -50, COLOR.primary);
