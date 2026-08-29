@@ -27,7 +27,7 @@ export class MenuView {
       );
       card.addComponent(Button);
       if (selected) card.scale = new Vec3(1.05, 1.05, 1);
-      const art = ArtService.makeSprite(card, d.artKey, 64, 64, 0, 8, 'dish-art');
+      const art = ArtService.makeSprite(card, d.artKey, 52, 52, 0, 6, 'dish-art');
       if (!art) {
         makeLabel('name', card, d.name, 14, 0, 0, COLOR.text);
         card.on(Button.EventType.CLICK, () => this.pick(d.id));
@@ -46,7 +46,7 @@ export class MenuView {
         afford ? COLOR.accent : COLOR.border,
       );
       card.addComponent(Button);
-      const art = ArtService.makeSprite(card, d.artKey, 64, 64, 0, 8, 'dish-art');
+      const art = ArtService.makeSprite(card, d.artKey, 52, 52, 0, 6, 'dish-art');
       if (!art) {
         const lockIcon = ArtService.attachIconSprite(card, 'icon-lock', -46, -4, 18);
         const nameL = makeLabel('name', card, `${lockIcon ? '' : '🔒 '}${d.name}`, 14, lockIcon ? 8 : 0, 14, COLOR.subtext);
@@ -67,7 +67,7 @@ export class MenuView {
 
   /** 在主视觉菜品图位置叠一层半透明深灰罩（圆角），表达锁定态 */
   private darken(card: Node): void {
-    makeRect('lock-veil', card, 64, 64, 0, 8, new Color(90, 70, 50, 90));
+    makeRect('lock-veil', card, 52, 52, 0, 6, new Color(90, 70, 50, 90));
   }
 
   setSelected(id: string | null): void {
