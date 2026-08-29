@@ -3,7 +3,6 @@ import { CustomerState, Dish } from '../core/types';
 import {
   DEFAULT_MAX_WAIT, MAX_SATISFACTION, paidAmount, satisfactionAfterWaiting,
 } from '../core/satisfaction';
-import { CUSTOMER_ART } from '../core/art';
 import { COLOR, lerpColor, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
 
