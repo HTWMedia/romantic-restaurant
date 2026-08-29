@@ -19,16 +19,19 @@ export class CustomerView {
   private maxWait = DEFAULT_MAX_WAIT;
   private floatNode: Node | null = null;
   private floatTween: Tween<Node> | null = null;
+  private plateNode: Node | null = null;
 
   constructor(
     parent: Node, x: number, y: number,
     readonly dish: Dish,
     readonly tableIndex: number,
+    readonly artKey: string,
+    private tableX: number,
+    private tableY: number,
     private onLeave: (c: CustomerView) => void,
   ) {
     this.price = dish.price;
-    const artKey = CUSTOMER_ART[Math.floor(Math.random() * CUSTOMER_ART.length)];
-    const hasArt = ArtService.hasArt(artKey);
+    const hasArt = ArtService.hasArt(this.artKey);
 
     this.node = hasArt
       ? makeNode('customer', parent, 60, 80, x, y)
@@ -36,7 +39,7 @@ export class CustomerView {
 
     if (hasArt) {
       const float = makeNode('float', this.node, 60, 80, 0, 0);
-      const sp = ArtService.makeSprite(float, artKey, 64, 88, 0, 0, 'cust-art');
+      const sp = ArtService.makeSprite(float, this.artKey, 64, 88, 0, 0, 'cust-art');
       if (sp) {
         this.node.setPosition(x, y);
         this.floatNode = float;
@@ -118,6 +121,11 @@ export class CustomerView {
     if (this._state !== CustomerState.ORDERING) return;
     this._state = CustomerState.EATING;
     this.eatTimer = 0;
+    if (ArtService.hasArt(this.dish.artKey) && this.node.parent) {
+      this.plateNode = ArtService.makeSprite(
+        this.node.parent, this.dish.artKey, 48, 48, this.tableX, this.tableY + 14, 'served-plate',
+      );
+    }
   }
 
   private updateSatBar(): void {
@@ -142,6 +150,10 @@ export class CustomerView {
     if (this.floatTween) {
       this.floatTween.stop();
       this.floatTween = null;
+    }
+    if (this.plateNode) {
+      this.plateNode.destroy();
+      this.plateNode = null;
     }
     this.node.destroy();
   }
