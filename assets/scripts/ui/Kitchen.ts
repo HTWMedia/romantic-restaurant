@@ -13,6 +13,7 @@ interface Slot {
   ring: Graphics;
   center: Label;
   name: Label;
+  dishArt: Node | null;
 }
 
 const PLATED_MAX = 18; // 做好的菜最多摆 18 秒，没人要就浪费
@@ -50,7 +51,7 @@ export class Kitchen {
       const ring = roundRect('ring', root, 50, 50, 0, 10, 25, COLOR.panel, COLOR.border).getComponent(Graphics)!;
       const center = makeLabel('center', root, '', 16, 0, 10, COLOR.text);
       const name = makeLabel('name', root, '', 11, 0, -32, COLOR.subtext);
-      this.slots.push({ dish: null, remain: 0, total: 0, ready: false, plated: 0, root, ring, center, name });
+      this.slots.push({ dish: null, remain: 0, total: 0, ready: false, plated: 0, root, ring, center, name, dishArt: null });
     }
     this.hintLabel.string = `可同时烹饪 ${n} 道菜`;
   }
@@ -104,6 +105,11 @@ export class Kitchen {
   }
 
   private render(s: Slot): void {
+    const hasDishArt = s.dish !== null && ArtService.hasArt(s.dish.artKey);
+    if (!hasDishArt && s.dishArt) { s.dishArt.destroy(); s.dishArt = null; }
+    if (hasDishArt && !s.dishArt) {
+      s.dishArt = ArtService.makeSprite(s.root, s.dish!.artKey, 34, 34, 0, 10, 'dish-art');
+    }
     const g = s.ring;
     g.clear();
     const r = 23;
@@ -115,8 +121,11 @@ export class Kitchen {
       s.center.string = '·';
       s.center.color = COLOR.subtext;
       s.name.string = '空闲';
+      s.center.node.setPosition(0, 10);
       return;
     }
+    const centerY = hasDishArt ? 30 : 10;
+    s.center.node.setPosition(0, centerY);
     if (s.ready) {
       s.center.string = '✓';
       s.center.color = COLOR.green;

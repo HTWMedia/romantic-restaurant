@@ -1,9 +1,11 @@
-import { Color, Graphics, Label, Node, tween, UITransform, Vec3 } from 'cc';
+import { Color, Graphics, Label, Node, tween, Tween, UITransform, Vec3 } from 'cc';
 import { CustomerState, Dish } from '../core/types';
 import {
   DEFAULT_MAX_WAIT, MAX_SATISFACTION, paidAmount, satisfactionAfterWaiting,
 } from '../core/satisfaction';
+import { CUSTOMER_ART } from '../core/art';
 import { COLOR, lerpColor, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 export class CustomerView {
   node: Node;
@@ -15,6 +17,8 @@ export class CustomerView {
   private satColor = new Color();
   private price = 0;
   private maxWait = DEFAULT_MAX_WAIT;
+  private floatNode: Node | null = null;
+  private floatTween: Tween<Node> | null = null;
 
   constructor(
     parent: Node, x: number, y: number,
@@ -22,26 +26,51 @@ export class CustomerView {
     readonly tableIndex: number,
     private onLeave: (c: CustomerView) => void,
   ) {
-    this.node = roundRect('customer', parent, 60, 80, x, y, 20, COLOR.panel, COLOR.border);
     this.price = dish.price;
+    const artKey = CUSTOMER_ART[Math.floor(Math.random() * CUSTOMER_ART.length)];
+    const hasArt = ArtService.hasArt(artKey);
 
-    // 头部
-    const head = roundRect('head', this.node, 30, 30, 0, 22, 10, COLOR.primary, new Color(235, 120, 80, 255));
-    head;
-    makeLabel('face', this.node, '🙂', 18, 0, 4, COLOR.white);
+    this.node = hasArt
+      ? makeNode('customer', parent, 60, 80, x, y)
+      : roundRect('customer', parent, 60, 80, x, y, 20, COLOR.panel, COLOR.border);
 
-    // 气泡（圆角 + 小三角），显示所点菜名
-    const bubble = makeNode('bubble', this.node, 70, 30, 55, 30);
+    if (hasArt) {
+      const float = makeNode('float', this.node, 60, 80, 0, 0);
+      const sp = ArtService.makeSprite(float, artKey, 64, 88, 0, 0, 'cust-art');
+      if (sp) {
+        this.node.setPosition(x, y);
+        this.floatNode = float;
+        this.floatTween = tween(float)
+          .repeatForever(
+            tween(float).to(1.2, { position: new Vec3(0, 4, 0) })
+              .to(1.2, { position: new Vec3(0, -4, 0) }),
+          ).start();
+      }
+    } else {
+      const head = roundRect('head', this.node, 30, 30, 0, 22, 10, COLOR.primary, new Color(235, 120, 80, 255));
+      head;
+      makeLabel('face', this.node, '🙂', 18, 0, 4, COLOR.white);
+    }
+
+    // 气泡（圆角 + 小三角），显示所点菜名（有菜图加缩略图）
+    const hasDishArt = ArtService.hasArt(dish.artKey);
+    const bw = hasDishArt ? 104 : 70;
+    const bubble = makeNode('bubble', this.node, bw, 30, 55, 30);
     const b = bubble.addComponent(Graphics);
     b.fillColor = COLOR.white;
-    b.roundRect(-35, -15, 70, 30, 10);
+    b.roundRect(-bw / 2, -15, bw, 30, 10);
     b.fill();
     b.moveTo(-18, -15);
     b.lineTo(-26, -25);
     b.lineTo(-10, -15);
     b.close();
     b.fill();
-    makeLabel('want', bubble, dish.name, 14, 0, 0, COLOR.text);
+    if (hasDishArt) {
+      ArtService.makeSprite(bubble, dish.artKey, 26, 26, -bw / 2 + 16, 0, 'bubble-dish');
+      makeLabel('want', bubble, `${dish.name}`, 13, -bw / 2 + 38, 0, COLOR.text);
+    } else {
+      makeLabel('want', bubble, dish.name, 14, 0, 0, COLOR.text);
+    }
 
     // 满意度条：背景 + 动态前景
     this.satBg = makeRect('sat-bg', this.node, 60, 6, 0, -48, COLOR.border);
@@ -71,6 +100,11 @@ export class CustomerView {
         this.node.setPosition(this.node.position.x - 200 * dt, this.node.position.y);
       }
     } else if (this._state === CustomerState.LEAVING) {
+      if (this.floatTween) {
+        this.floatTween.stop();
+        this.floatTween = null;
+        if (this.floatNode) this.floatNode.setPosition(0, 0);
+      }
       this.node.setPosition(this.node.position.x - 200 * dt, this.node.position.y);
       // 走出屏幕左侧后通知 Main 收钱并移除
       if (this.node.position.x < -500) {
@@ -105,6 +139,10 @@ export class CustomerView {
   markGone(): void {
     if (this._state === CustomerState.GONE) return;
     this._state = CustomerState.GONE;
+    if (this.floatTween) {
+      this.floatTween.stop();
+      this.floatTween = null;
+    }
     this.node.destroy();
   }
 

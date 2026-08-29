@@ -342,9 +342,21 @@ export class Main extends Component {
     this.orderSig = sig;
     this.orderList.removeAllChildren();
     makeLabel('ob-title', this.orderList, '📋 待办订单', 14, -430, 0, COLOR.subtext);
-    pending.slice(0, 8).forEach((c, i) => {
-      const t = roundRect(`ob-${i}`, this.orderList, 90, 30, -330 + i * 100, 0, 8, COLOR.panel, COLOR.border);
-      makeLabel(`obt-${i}`, t, c.dish.name, 13, 0, 0, COLOR.text);
+    // 按菜品合并，显示缩略图 + 菜名 + 份数
+    const counts: { dish: Dish; n: number }[] = [];
+    for (const c of pending) {
+      const it = counts.find(x => x.dish.id === c.dish.id);
+      if (it) it.n++;
+      else counts.push({ dish: c.dish, n: 1 });
+    }
+    counts.slice(0, 6).forEach((it, i) => {
+      const t = roundRect(`ob-${i}`, this.orderList, 110, 30, -330 + i * 116, 0, 8, COLOR.panel, COLOR.border);
+      if (ArtService.hasArt(it.dish.artKey)) {
+        ArtService.makeSprite(t, it.dish.artKey, 20, 20, -40, 0, 'ob-dish');
+        makeLabel(`obt-${i}`, t, `${it.dish.name}${it.n > 1 ? ` ×${it.n}` : ''}`, 13, -18, 0, COLOR.text);
+      } else {
+        makeLabel(`obt-${i}`, t, it.dish.name, 13, 0, 0, COLOR.text);
+      }
     });
   }
 
