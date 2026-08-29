@@ -11,6 +11,7 @@ export interface Dish {
   price: number;       // 金币
   cookTime: number;    // 做菜所需秒数
   unlockCost: number;  // 解锁所需金币，0 = 初始解锁
+  artKey: string;      // 美术 key（缺图回退 emoji）
 }
 
 export interface SaveData {

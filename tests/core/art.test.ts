@@ -30,3 +30,28 @@ describe('core hasArt 注册表（回退决策源）', () => {
     expect(hasArt('cust-2')).toBe(false);
   });
 });
+
+import { DISHES } from '../../assets/scripts/core/dishes';
+import { CHAPTERS, DialogueLine } from '../../assets/scripts/core/chapters';
+import { SKINS } from '../../assets/scripts/core/skins';
+
+describe('数据层 artKey 覆盖', () => {
+  it('每道菜 artKey 在清单中', () => {
+    for (const d of DISHES) expect(entry(d.artKey)).toBeDefined();
+  });
+  it('每句剧情 artKey 在清单中，且旁白用 icon-narrator', () => {
+    const lines: DialogueLine[] = [];
+    for (const ch of CHAPTERS) {
+      lines.push(...ch.intro, ...ch.outro);
+    }
+    expect(lines.length).toBeGreaterThan(10);
+    for (const l of lines) expect(entry(l.artKey)).toBeDefined();
+    expect(lines.find(l => l.who === '旁白')!.artKey).toBe('icon-narrator');
+  });
+  it('每套皮肤 iconArtKey 与每个装饰 artKey 在清单中', () => {
+    for (const s of SKINS) {
+      expect(entry(s.iconArtKey)).toBeDefined();
+      for (const p of s.decor) expect(entry(p.artKey)).toBeDefined();
+    }
+  });
+});
