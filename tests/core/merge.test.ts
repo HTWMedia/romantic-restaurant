@@ -31,4 +31,9 @@ describe('merge chain', () => {
     expect(terminals.length).toBeGreaterThan(0);
     for (const t of terminals) expect(t.unlocksDishId).toBeTruthy();
   });
+  it('每个合成项都有图源（glyph 或 artKey），回退不会空白', () => {
+    for (const it of MERGE_ITEMS) {
+      expect(it.glyph || it.artKey).toBeTruthy();
+    }
+  });
 });
