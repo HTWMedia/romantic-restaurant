@@ -63,10 +63,9 @@ export class MergeView {
     const id = this.itemIds[i];
     if (id) {
       const it = mergeItemById(id);
-      if (it && it.artKey) {
-        ArtService.makeSprite(content, it.artKey, 72, 72, 0, 0, 'mi');
-      } else if (it) {
-        makeLabel('mi', content, it.glyph ?? '?', 36, 0, 0, COLOR.text);
+      if (it) {
+        const drew = it.artKey ? ArtService.makeSprite(content, it.artKey, 72, 72, 0, 0, 'mi') !== null : false;
+        if (!drew && it.glyph) makeLabel('mi', content, it.glyph, 36, 0, 0, COLOR.text);
       }
     }
     if (i === this.selected) {
