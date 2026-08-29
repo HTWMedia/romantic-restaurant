@@ -60,7 +60,7 @@ export class Main extends Component {
   }
 
   private buildGame(): void {
-    makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
+    this.buildBackground();
     this.buildDecor();
     this.buildTables();
 
@@ -189,6 +189,16 @@ export class Main extends Component {
     this.adView.play(3, reward, title);
   }
 
+  private buildBackground(): void {
+    const art = ArtService.makeSprite(this.node, 'bg', 960, 640, 0, 0, 'bg');
+    if (art) {
+      art.setSiblingIndex(0);
+      return;
+    }
+    const rect = makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
+    rect.setSiblingIndex(0);
+  }
+
   private buildTables(): void {
     for (const t of this.tables) t.node.destroy();
     const count = tableCountAtLevel(this.data.tableLevel);
@@ -217,6 +227,7 @@ export class Main extends Component {
   }
 
   private buildDecor(): void {
+    if (ArtService.hasArt('bg')) return;
     const floor = makeNode('floor', this.node, 960, 4, 0, -60);
     const fg = floor.addComponent(Graphics);
     fg.fillColor = COLOR.decor;
@@ -362,16 +373,23 @@ export class Main extends Component {
     const skin = skinById(this.data.activeSkinId);
     let tint = this.node.getChildByName('skin-tint');
     if (tint) tint.destroy();
-    const bg = new Color(skin.bg.r, skin.bg.g, skin.bg.b);
+    const hasBg = ArtService.hasArt('bg');
+    const alpha = hasBg ? 40 : 255;
+    const bg = new Color(skin.bg.r, skin.bg.g, skin.bg.b, alpha);
     tint = makeRect('skin-tint', this.node, 960, 640, 0, 0, bg);
     tint.setSiblingIndex(1);
     for (const d of this.decorNodes) d.destroy();
     this.decorNodes = [];
     for (const p of skin.decor) {
+      const art = ArtService.makeSprite(this.node, p.artKey, 88, 88, p.x, p.y, `decor-art-${p.artKey}`);
+      if (art) {
+        art.setSiblingIndex(2);
+        this.decorNodes.push(art);
+        continue;
+      }
       const l = makeLabel(`decor-${p.emoji}`, this.node, p.emoji, 40, p.x, p.y, COLOR.text);
-      const n = l.node;
-      n.setSiblingIndex(2);
-      this.decorNodes.push(n);
+      l.node.setSiblingIndex(2);
+      this.decorNodes.push(l.node);
     }
   }
 
