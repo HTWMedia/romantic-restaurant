@@ -44,7 +44,8 @@ export class SkinView {
       const y = 120 - i * 64;
       const row = roundRect(`skin-row-${i}`, this.list, 480, 54, 0, y, 12, COLOR.panel, COLOR.border);
       row.addComponent(Button);
-      makeLabel(`skin-ic-${i}`, row, s.icon, 28, -200, 0, COLOR.text);
+      const skinIcon = ArtService.attachIconSprite(row, s.iconArtKey, -200, 0, 40);
+      if (!skinIcon) makeLabel(`skin-ic-${i}`, row, s.icon, 28, -200, 0, COLOR.text);
       makeLabel(`skin-nm-${i}`, row, s.name, 18, -150, 8, COLOR.text);
       const owned = data.skinOwned(s.id);
       const active = data.activeSkinId === s.id;
