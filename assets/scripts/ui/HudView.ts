@@ -13,25 +13,61 @@ export class HudView {
   private custLabel!: Label;
   private tableLevelLabel!: Label;
   private kitchenLevelLabel!: Label;
+  private comboLabel!: Label;
+  private chapterBtn!: Node;
+  private energyBtn!: Node;
+  private energyLabel!: Label;
   private lastCoins = -1;
 
-  constructor(parent: Node, upgradeCb: () => void) {
+  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void) {
     panelWithShadow('hud-bg', parent, 920, 58, 0, 293, 16, COLOR.panel, COLOR.border);
 
     // 金币徽章块
-    roundRect('coin-badge', parent, 170, 38, -380, 293, 19, new Color(255, 201, 77, 60));
-    makeLabel('coin-icon', parent, '🪙', 20, -440, 293, COLOR.accent);
-    this.coinsLabel = makeLabel('coins', parent, '0', 20, -345, 293, COLOR.text);
+    roundRect('coin-badge', parent, 150, 38, -410, 293, 19, new Color(255, 201, 77, 60));
+    makeLabel('coin-icon', parent, '🪙', 20, -460, 293, COLOR.accent);
+    this.coinsLabel = makeLabel('coins', parent, '0', 20, -370, 293, COLOR.text);
     this.coinsLabel.isBold = true;
 
+    // 体力按钮（点=看广告恢复）
+    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -270, 293, COLOR.primary, '⚡ 12/12', adCb);
+    this.energyLabel = this.energyBtn.getComponentInChildren(Label)!;
+
     // 在店人数
-    this.custLabel = makeLabel('customers', parent, '🧑 在店 0', 18, 0, 293, COLOR.text);
+    this.custLabel = makeLabel('customers', parent, '🧑 在店 0', 18, -100, 293, COLOR.text);
 
     // 等级标签
-    this.tableLevelLabel = this.tag(parent, '桌 L1', 215);
-    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 310);
+    this.tableLevelLabel = this.tag(parent, '桌 L1', 170);
+    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 250);
 
-    pillButton('upgrade-btn', parent, 90, 34, 425, 293, COLOR.primary, '升级', upgradeCb);
+    this.comboLabel = makeLabel('combo', parent, '', 18, 70, 293, COLOR.accent);
+    this.comboLabel.isBold = true;
+    this.comboLabel.node.active = false;
+
+    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 335, 293, COLOR.accent, '📖 第1章', chapterCb);
+
+    pillButton('upgrade-btn', parent, 90, 34, 435, 293, COLOR.primary, '升级', upgradeCb);
+  }
+
+  setChapter(index: number, total: number, stars: number): void {
+    const label = this.chapterBtn.getComponentInChildren(Label)!;
+    label.string = `📖 第${index + 1}/${total}章 ⭐${stars}`;
+  }
+
+  setEnergy(cur: number, max: number): void {
+    this.energyLabel.string = cur <= 0 ? '⚡ 看广告恢复' : `⚡ ${cur}/${max}`;
+  }
+
+  setCombo(combo: number, mult: number): void {
+    if (combo <= 1) {
+      this.comboLabel.node.active = false;
+      return;
+    }
+    this.comboLabel.node.active = true;
+    this.comboLabel.string = `连击 x${combo}（${mult.toFixed(1)}倍）`;
+    tween(this.comboLabel.node)
+      .to(0.12, { scale: new Vec3(1.2, 1.2, 1) })
+      .to(0.12, { scale: new Vec3(1, 1, 1) })
+      .start();
   }
 
   private tag(parent: Node, text: string, x: number): Label {

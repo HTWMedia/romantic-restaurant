@@ -18,6 +18,13 @@ export interface SaveData {
   coins: number;
   unlockedDishIds: string[];
   tableLevel: number;     // 桌位等级 1..5
-  kitchenLevel: number;   // 厨房等级 1..5
+  kitchenLevel: number;  // 厨房等级 1..5
   totalRevenue: number;   // 累计营业额
+  chapterIndex: number;   // 当前章节（已完成章节数）
+  servedTotal: number;    // 累计成功招待人数
+  happyTotal: number;     // 累计满意离店人数
+  introPlayed: boolean;   // 是否已播过开场剧情
+  energy: number;         // 当前体力
+  ownedSkinIds: string[]; // 已拥有的皮肤
+  activeSkinId: string;   // 当前使用的皮肤
 }

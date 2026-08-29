@@ -1,4 +1,5 @@
 import { DISHES } from './dishes';
+import { SKINS } from './skins';
 import { SaveData } from './types';
 
 export const SAVE_VERSION = 1;
@@ -8,6 +9,8 @@ export const TABLE_BASE_COST = 100;
 export const KITCHEN_BASE_COST = 150;
 export const KITCHEN_TIME_REDUCTION = 0.85;
 export const COOK_TIME_FLOOR = 1;
+export const ENERGY_MAX = 12;
+export const ENERGY_REGEN_SEC = 5;
 
 export function tableUpgradeCost(level: number): number {
   return TABLE_BASE_COST * level * level;
@@ -27,6 +30,10 @@ export function tableCountAtLevel(level: number): number {
   return Math.max(1, level);
 }
 
+export function kitchenSlotCount(level: number): number {
+  return Math.max(1, level);
+}
+
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
@@ -35,6 +42,13 @@ export function createDefaultSave(): SaveData {
     tableLevel: 1,
     kitchenLevel: 1,
     totalRevenue: 0,
+    chapterIndex: 0,
+    servedTotal: 0,
+    happyTotal: 0,
+    introPlayed: false,
+    energy: ENERGY_MAX,
+    ownedSkinIds: ['classic'],
+    activeSkinId: 'classic',
   };
 }
 
@@ -44,6 +58,13 @@ export class GameData {
   tableLevel: number;
   kitchenLevel: number;
   totalRevenue: number;
+  chapterIndex: number;
+  servedTotal: number;
+  happyTotal: number;
+  introPlayed: boolean;
+  energy: number;
+  ownedSkinIds: string[];
+  activeSkinId: string;
 
   constructor(save?: SaveData | null) {
     const base = save ?? createDefaultSave();
@@ -52,14 +73,21 @@ export class GameData {
     this.tableLevel = base.tableLevel;
     this.kitchenLevel = base.kitchenLevel;
     this.totalRevenue = base.totalRevenue;
+    this.chapterIndex = (base as any).chapterIndex ?? 0;
+    this.servedTotal = (base as any).servedTotal ?? 0;
+    this.happyTotal = (base as any).happyTotal ?? 0;
+    this.introPlayed = (base as any).introPlayed ?? false;
+    this.energy = (base as any).energy ?? ENERGY_MAX;
+    this.ownedSkinIds = (base as any).ownedSkinIds ?? ['classic'];
+    this.activeSkinId = (base as any).activeSkinId ?? 'classic';
   }
 
   get availableDishes(): typeof DISHES {
-    return DISHES.filter(d => this.unlockedDishIds.includes(d.id));
+    return DISHES.filter(d => this.unlockedDishIds.indexOf(d.id) !== -1);
   }
 
   dishUnlocked(id: string): boolean {
-    return this.unlockedDishIds.includes(id);
+    return this.unlockedDishIds.indexOf(id) !== -1;
   }
 
   earn(amount: number): void {
@@ -88,6 +116,26 @@ export class GameData {
     if (!dish || !this.canUnlockDish(id)) return false;
     this.spend(dish.unlockCost);
     this.unlockedDishIds.push(id);
+    return true;
+  }
+
+  skinOwned(id: string): boolean {
+    return this.ownedSkinIds.indexOf(id) !== -1;
+  }
+
+  unlockSkin(id: string): boolean {
+    const skin = SKINS.find(s => s.id === id);
+    if (!skin || this.skinOwned(id)) return false;
+    if (!this.canSpend(skin.cost)) return false;
+    this.spend(skin.cost);
+    this.ownedSkinIds.push(id);
+    this.activeSkinId = id;
+    return true;
+  }
+
+  setSkin(id: string): boolean {
+    if (!this.skinOwned(id)) return false;
+    this.activeSkinId = id;
     return true;
   }
 
@@ -121,6 +169,13 @@ export class GameData {
       tableLevel: this.tableLevel,
       kitchenLevel: this.kitchenLevel,
       totalRevenue: this.totalRevenue,
+      chapterIndex: this.chapterIndex,
+      servedTotal: this.servedTotal,
+      happyTotal: this.happyTotal,
+      introPlayed: this.introPlayed,
+      energy: this.energy,
+      ownedSkinIds: [...this.ownedSkinIds],
+      activeSkinId: this.activeSkinId,
     };
   }
 }

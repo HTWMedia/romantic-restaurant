@@ -1,4 +1,4 @@
-import { Color, Graphics, Label, Node, UITransform } from 'cc';
+import { Color, Graphics, Label, Node, tween, UITransform, Vec3 } from 'cc';
 import { CustomerState, Dish } from '../core/types';
 import {
   DEFAULT_MAX_WAIT, MAX_SATISFACTION, paidAmount, satisfactionAfterWaiting,
@@ -106,5 +106,19 @@ export class CustomerView {
     if (this._state === CustomerState.GONE) return;
     this._state = CustomerState.GONE;
     this.node.destroy();
+  }
+
+  /** 上菜收款时的飘字演出：上方弹出 +金额 */
+  showPay(amount: number): void {
+    const lab = makeLabel('pay', this.node, `+${amount}🪙`, 18, 0, 42, COLOR.accent);
+    lab.isBold = true;
+    tween(lab.node)
+      .to(0.7, { position: new Vec3(0, 95, 0) })
+      .call(() => lab.node.destroy())
+      .start();
+    tween(this.node)
+      .to(0.1, { scale: new Vec3(1.12, 1.12, 1) })
+      .to(0.1, { scale: new Vec3(1, 1, 1) })
+      .start();
   }
 }

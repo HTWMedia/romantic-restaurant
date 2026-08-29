@@ -23,7 +23,7 @@ export class UpgradeView {
 
   constructor(
     private parent: Node,
-    private cb: { onUpgradeTable: () => void; onUpgradeKitchen: () => void },
+    private cb: { onUpgradeTable: () => void; onUpgradeKitchen: () => void; onSkins: () => void },
   ) {
     this.overlay = makeRect('upgrade-overlay', parent, 960, 640, 0, 0, new Color(0, 0, 0, 90));
     this.overlay.active = false;
@@ -44,6 +44,8 @@ export class UpgradeView {
     makeLabel('kb-icon', this.kitchenBtn, '⚡', 28, -80, 0, COLOR.text);
     this.kitchenLabel = makeLabel('kb-info', this.kitchenBtn, '', 14, 10, 0, COLOR.text);
     this.kitchenBtn.on(Button.EventType.CLICK, () => this.cb.onUpgradeKitchen());
+
+    pillButton('skin-entry', this.panel, 440, 40, 0, -120, COLOR.accent, '🎨 装修小店', () => this.cb.onSkins());
 
     // 右上角 ✕ 关闭
     const closeBtn = makeRect('close-btn', this.panel, 40, 40, 230, 135, COLOR.panel);

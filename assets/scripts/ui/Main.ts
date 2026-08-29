@@ -1,17 +1,25 @@
-import { _decorator, Component, Color, Graphics } from 'cc';
+import { _decorator, Component, Color, Graphics, Node } from 'cc';
 import { GameData } from '../core/gameData';
 import { StorageService, BrowserKVStore } from '../core/storage';
 import { dishById, DISHES } from '../core/dishes';
-import { Dish } from '../core/types';
+import { CustomerState, Dish } from '../core/types';
 import {
-  cookTimeAtLevel, tableCountAtLevel, tableUpgradeCost, kitchenUpgradeCost,
+  cookTimeAtLevel, tableCountAtLevel, tableUpgradeCost, kitchenUpgradeCost, kitchenSlotCount,
 } from '../core/gameData';
 import { CustomerView } from './CustomerView';
 import { Kitchen } from './Kitchen';
 import { HudView } from './HudView';
 import { MenuView } from './MenuView';
 import { UpgradeView } from './UpgradeView';
+import { DialogueView } from './DialogueView';
+import { ChapterView } from './ChapterView';
+import { AdView } from './AdView';
+import { SkinView } from './SkinView';
+import { CHAPTERS } from '../core/chapters';
+import { skinById } from '../core/skins';
+import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
+import { Sfx } from '../services/Sfx';
 
 const { ccclass } = _decorator;
 
@@ -25,9 +33,19 @@ export class Main extends Component {
   private kitchen!: Kitchen;
   private upgrade!: UpgradeView;
 
-  private tables: { node: import('cc').Node; x: number }[] = [];
+  private tables: { node: Node; x: number }[] = [];
   private customers: CustomerView[] = [];
   private spawnTimer = 2;
+
+  private combo = 0;
+  private dialogue!: DialogueView;
+  private chapterView!: ChapterView;
+  private adView!: AdView;
+  private skinView!: SkinView;
+  private decorNodes: Node[] = [];
+  private energyTimer = 0;
+  private orderBoard!: Node;
+  private orderSig = '';
 
   onLoad(): void {
     this.storage = new StorageService(new BrowserKVStore());
@@ -35,29 +53,66 @@ export class Main extends Component {
 
     makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
     this.buildDecor();
-
     this.buildTables();
-    this.kitchen = new Kitchen(this.node, 360, -80, d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel));
-    this.hud = new HudView(this.node, () => {
-      this.upgrade.open();
-      this.refreshUpgrade();
-    });
-    this.menu = new MenuView(this.node,
-      id => {
-        this.kitchen.selectDish(dishById(id) ?? null);
-        this.menu.rebuild(
-          this.data.availableDishes,
-          DISHES.filter(d => !this.data.dishUnlocked(d.id)),
-          this.data.coins,
-        );
+
+    this.kitchen = new Kitchen(
+      this.node, 330, -80,
+      d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel),
+      kitchenSlotCount(this.data.kitchenLevel),
+    );
+    this.kitchen.onSlotReady = () => Sfx.cook();
+
+    this.hud = new HudView(this.node,
+      () => {
+        this.upgrade.open();
+        this.refreshUpgrade();
       },
+      () => this.openChapters(),
+      () => this.onAdButton(),
+    );
+    this.hud.setCombo(0, 1);
+
+    this.menu = new MenuView(this.node,
+      id => { this.cookSelected(id); },
       id => { if (this.data.unlockDish(id)) this.refreshAll(); },
     );
+
     this.upgrade = new UpgradeView(this.node, {
       onUpgradeTable: () => { if (this.data.upgradeTable()) this.refreshAll(); },
-      onUpgradeKitchen: () => { if (this.data.upgradeKitchen()) this.refreshAll(); },
+      onUpgradeKitchen: () => {
+        if (this.data.upgradeKitchen()) {
+          this.kitchen.setSlotCount(kitchenSlotCount(this.data.kitchenLevel));
+          this.refreshAll();
+        }
+      },
+      onSkins: () => this.skinView.open(this.data),
     });
 
+    this.chapterView = new ChapterView(this.node, () => {
+      const ch = CHAPTERS[this.data.chapterIndex];
+      if (ch) this.dialogue.play(ch.intro, () => {});
+    });
+
+    this.dialogue = new DialogueView(this.node);
+
+    this.adView = new AdView(this.node);
+
+    this.skinView = new SkinView(
+      this.node,
+      () => this.applySkin(),
+      () => { this.refreshHud(); this.saveGame(); },
+    );
+    this.applySkin();
+
+    // 首次进入播放开场剧情
+    if (!this.data.introPlayed) {
+      this.data.introPlayed = true;
+      this.saveGame();
+      const first = CHAPTERS[0];
+      if (first) this.dialogue.play(first.intro, () => {});
+    }
+
+    this.orderBoard = makeNode('order-board', this.node, 920, 40, 0, 235);
     this.refreshAll();
   }
 
@@ -66,6 +121,62 @@ export class Main extends Component {
     this.kitchen.update(dt);
     this.serveIfReady();
     this.updateCustomers(dt);
+    this.refreshOrderBoard();
+    if (this.data.energy < ENERGY_MAX) {
+      this.energyTimer += dt;
+      if (this.energyTimer >= ENERGY_REGEN_SEC) {
+        this.energyTimer = 0;
+        this.data.energy++;
+        this.refreshHud();
+        this.saveGame();
+      }
+    }
+    this.adView.update(dt);
+  }
+
+  private cookSelected(id: string): void {
+    const dish = dishById(id);
+    if (!dish) return;
+    if (this.data.energy <= 0) {
+      this.onAdButton();
+      return;
+    }
+    if (!this.kitchen.cookDish(dish)) {
+      Sfx.fail();
+      return;
+    }
+    this.data.energy--;
+    this.menu.setSelected(id);
+    this.menu.rebuild(
+      this.data.availableDishes,
+      DISHES.filter(d => !this.data.dishUnlocked(d.id)),
+      this.data.coins,
+    );
+    this.refreshHud();
+    this.saveGame();
+  }
+
+  private onAdButton(): void {
+    if (this.data.energy < ENERGY_MAX) {
+      this.watchAd(() => {
+        this.data.energy = ENERGY_MAX;
+        this.energyTimer = 0;
+        this.refreshHud();
+        this.saveGame();
+      }, '看广告恢复体力');
+    } else {
+      this.watchAd(() => {
+        this.data.earn(30);
+        Sfx.coin();
+        this.refreshHud();
+        this.saveGame();
+      }, '看广告领 30 🪙');
+    }
+  }
+
+  private watchAd(reward: () => void, title: string): void {
+    if (this.adView.isPlaying) return;
+    this.adView.play(3, reward, title);
   }
 
   private buildTables(): void {
@@ -77,18 +188,15 @@ export class Main extends Component {
       const x = startX + i * 130;
       const node = makeNode(`table-${i}`, this.node, 90, 40, x, -40);
       const g = node.addComponent(Graphics);
-      // 桌面
       g.fillColor = COLOR.panel;
       g.roundRect(-45, -18, 90, 18, 8);
       g.fill();
       g.lineWidth = 2;
       g.strokeColor = COLOR.border;
       g.stroke();
-      // 桌面高光
       g.fillColor = new Color(255, 255, 255, 60);
       g.roundRect(-40, -14, 80, 4, 2);
       g.fill();
-      // 桌腿
       g.fillColor = COLOR.decor;
       g.rect(-38, -22, 8, 10);
       g.fill();
@@ -99,18 +207,15 @@ export class Main extends Component {
   }
 
   private buildDecor(): void {
-    // 地板线
     const floor = makeNode('floor', this.node, 960, 4, 0, -60);
     const fg = floor.addComponent(Graphics);
     fg.fillColor = COLOR.decor;
     fg.rect(-480, -2, 960, 4);
     fg.fill();
 
-    // 挂画
     const pic = roundRect('pic', this.node, 60, 50, -420, 200, 8, COLOR.panel, COLOR.border);
     makeLabel('pic-content', pic, '🌻', 30, 0, 0);
 
-    // 两侧绿植
     makeLabel('plant-l', this.node, '🪴', 44, -450, -30, COLOR.text);
     makeLabel('plant-r', this.node, '🪴', 44, 450, -30, COLOR.text);
   }
@@ -124,7 +229,6 @@ export class Main extends Component {
 
     const avail = this.data.availableDishes;
     const dish = avail[Math.floor(Math.random() * avail.length)];
-    // 找一个还没有顾客占用的桌位
     let tableIndex = -1;
     for (let i = 0; i < this.tables.length; i++) {
       if (!this.customers.some(c => c.tableIndex === i)) { tableIndex = i; break; }
@@ -132,7 +236,7 @@ export class Main extends Component {
     if (tableIndex < 0) return;
     const table = this.tables[tableIndex];
     const c = new CustomerView(
-      this.node, table.x + 220, 40, dish, tableIndex,
+      this.node, table.x + 200, 40, dish, tableIndex,
       c2 => this.onCustomerLeave(c2),
     );
     this.customers.push(c);
@@ -146,23 +250,79 @@ export class Main extends Component {
   }
 
   private serveIfReady(): void {
-    if (!this.kitchen.ready) return;
-    const dish = this.kitchen.currentDish;
-    if (!dish) return;
-    const waiting = this.customers.find(c => c.state === 'ORDERING' && c.dish.id === dish.id);
-    if (waiting) {
-      waiting.serve();
-      this.kitchen.collect();
-    } else {
-      // 没有顾客点这道菜：菜被浪费，清空厨房，提示一下
-      this.kitchen.collect();
+    for (const slot of this.kitchen.readySlots()) {
+      const dish = slot.dish!;
+      const waiting = this.customers.find(c => c.state === CustomerState.ORDERING && c.dish.id === dish.id);
+      if (waiting) {
+        waiting.serve();
+        this.kitchen.takeSlot(slot);
+        this.onServed(waiting, dish);
+      }
     }
   }
 
+  private onServed(c: CustomerView, _dish: Dish): void {
+    this.combo++;
+    const mult = this.comboMultiplier();
+    const pay = Math.round(c.paid * mult);
+    this.data.earn(pay);
+    this.data.servedTotal++;
+    if (c.satisfaction >= 70) this.data.happyTotal++;
+    Sfx.coin();
+    c.showPay(pay);
+    this.hud.setCombo(this.combo, mult);
+    this.refreshHud();
+    this.saveGame();
+    this.checkChapter();
+  }
+
+  private checkChapter(): void {
+    const ch = CHAPTERS[this.data.chapterIndex];
+    if (!ch) return;
+    const met = ch.goals.every(g => {
+      if (g.kind === 'revenue') return this.data.totalRevenue >= g.target;
+      if (g.kind === 'served') return this.data.servedTotal >= g.target;
+      if (g.kind === 'happy') return this.data.happyTotal >= g.target;
+      return false;
+    });
+    if (!met) return;
+    this.data.earn(ch.reward.coins);
+    this.data.chapterIndex++;
+    this.saveGame();
+    this.hud.setChapter(this.data.chapterIndex, CHAPTERS.length, this.data.chapterIndex);
+    Sfx.coin();
+    this.dialogue.play(ch.outro, () => this.openChapters());
+  }
+
+  private openChapters(): void {
+    this.chapterView.open(this.data);
+  }
+
+  private comboMultiplier(): number {
+    return Math.min(3, 1 + Math.floor(this.combo / 3) * 0.5);
+  }
+
   private onCustomerLeave(c: CustomerView): void {
-    this.data.earn(c.wantsLeavesUpset ? 0 : c.paid);
+    if (c.wantsLeavesUpset) {
+      this.combo = 0;
+      Sfx.fail();
+      this.hud.setCombo(0, 1);
+    }
     c.markGone();
     this.refreshAll();
+  }
+
+  private refreshOrderBoard(): void {
+    const pending = this.customers.filter(c => c.state === CustomerState.ORDERING);
+    const sig = pending.map(c => c.dish.id).join(',');
+    if (sig === this.orderSig) return;
+    this.orderSig = sig;
+    this.orderBoard.removeAllChildren();
+    makeLabel('ob-title', this.orderBoard, '📋 待办订单', 14, -430, 0, COLOR.subtext);
+    pending.slice(0, 8).forEach((c, i) => {
+      const t = roundRect(`ob-${i}`, this.orderBoard, 90, 30, -330 + i * 100, 0, 8, COLOR.panel, COLOR.border);
+      makeLabel(`obt-${i}`, t, c.dish.name, 13, 0, 0, COLOR.text);
+    });
   }
 
   private refreshAll(): void {
@@ -172,7 +332,6 @@ export class Main extends Component {
       DISHES.filter(d => !this.data.dishUnlocked(d.id)),
       this.data.coins,
     );
-    this.kitchen.selectDish(this.kitchen.currentDish);
     this.refreshHud();
     if (this.upgrade.isOpen) this.refreshUpgrade();
   }
@@ -184,7 +343,26 @@ export class Main extends Component {
       tableLevel: this.data.tableLevel,
       kitchenLevel: this.data.kitchenLevel,
     });
+    this.hud.setChapter(this.data.chapterIndex, CHAPTERS.length, this.data.chapterIndex);
+    this.hud.setEnergy(this.data.energy, ENERGY_MAX);
     this.saveGame();
+  }
+
+  private applySkin(): void {
+    const skin = skinById(this.data.activeSkinId);
+    let tint = this.node.getChildByName('skin-tint');
+    if (tint) tint.destroy();
+    const bg = new Color(skin.bg.r, skin.bg.g, skin.bg.b);
+    tint = makeRect('skin-tint', this.node, 960, 640, 0, 0, bg);
+    tint.setSiblingIndex(1);
+    for (const d of this.decorNodes) d.destroy();
+    this.decorNodes = [];
+    for (const p of skin.decor) {
+      const l = makeLabel(`decor-${p.emoji}`, this.node, p.emoji, 40, p.x, p.y, COLOR.text);
+      const n = l.node;
+      n.setSiblingIndex(2);
+      this.decorNodes.push(n);
+    }
   }
 
   private refreshUpgrade(): void {
@@ -193,7 +371,7 @@ export class Main extends Component {
       tableLevel: this.data.tableLevel,
       kitchenLevel: this.data.kitchenLevel,
       tableCost: tableUpgradeCost(this.data.tableLevel),
-      kitchenCost: kitchenUpgradeCost(this.data.kitchenLevel),
+      kitchenCost: kitchenUpgradeCost(this.data.tableLevel),
       tableMaxed: this.data.tableLevel >= 5,
       kitchenMaxed: this.data.kitchenLevel >= 5,
     });
