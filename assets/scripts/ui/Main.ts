@@ -20,6 +20,7 @@ import { skinById } from '../core/skins';
 import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
+import { CUSTOMER_ART } from '../core/art';
 import { Sfx } from '../services/Sfx';
 
 const { ccclass } = _decorator;
@@ -258,8 +259,14 @@ export class Main extends Component {
     }
     if (tableIndex < 0) return;
     const table = this.tables[tableIndex];
+    // 同屏形象去重：排除当前在场角色
+    const used = this.customers.map(c => c.artKey);
+    const pool = CUSTOMER_ART.filter(a => used.indexOf(a) === -1);
+    const artKey = pool.length > 0
+      ? pool[Math.floor(Math.random() * pool.length)]
+      : CUSTOMER_ART[Math.floor(Math.random() * CUSTOMER_ART.length)];
     const c = new CustomerView(
-      this.node, table.x + 200, 40, dish, tableIndex,
+      this.node, table.x + 64, -6, dish, tableIndex, artKey, table.x, -40,
       c2 => this.onCustomerLeave(c2),
     );
     this.customers.push(c);
