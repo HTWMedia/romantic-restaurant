@@ -1,5 +1,6 @@
 import { Color, Label, Node } from 'cc';
 import { COLOR, makeLabel, makeRect, panelWithShadow } from './Widgets';
+import { ArtService } from './ArtView';
 
 // 模拟"看广告"：真实接入时把 play() 内部换成微信/抖音广告 SDK 的回调即可。
 export class AdView {
@@ -15,7 +16,7 @@ export class AdView {
     this.overlay = makeRect('ad-overlay', parent, 960, 640, 0, 0, new Color(0, 0, 0, 175));
     this.overlay.active = false;
     this.overlay.on(Node.EventType.TOUCH_START, () => {});
-    this.panel = panelWithShadow('ad-panel', parent, 480, 280, 0, 0, 20, COLOR.panel, COLOR.border);
+    this.panel = ArtService.panelWithArt('ad-panel', parent, 'panel-popup', 480, 280, 0, 0);
     this.panel.active = false;
     makeLabel('ad-icon', this.panel, '📺', 60, 0, 70, COLOR.text);
     this.titleL = makeLabel('ad-title', this.panel, '', 22, 0, 10, COLOR.text);

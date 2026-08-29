@@ -2,6 +2,7 @@ import { Button, Color, Label, Node } from 'cc';
 import { GameData } from '../core/gameData';
 import { SKINS } from '../core/skins';
 import { COLOR, makeLabel, makeNode, makeRect, panelWithShadow, pillButton, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 export class SkinView {
   private overlay!: Node;
@@ -18,7 +19,7 @@ export class SkinView {
     this.overlay.active = false;
     this.overlay.on(Node.EventType.TOUCH_START, () => this.close());
 
-    this.panel = panelWithShadow('skin-panel', parent, 560, 420, 0, 0, 20, COLOR.panel, COLOR.border);
+    this.panel = ArtService.panelWithArt('skin-panel', parent, 'panel-popup', 560, 420, 0, 0);
     this.panel.active = false;
     makeLabel('skin-title', this.panel, '🎨 装修小店', 24, 0, 175, COLOR.text);
     this.list = makeNode('skin-list', this.panel, 500, 300, 0, -10);

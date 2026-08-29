@@ -1,5 +1,6 @@
 import { Button, Color, Label, Node, tween, Vec3 } from 'cc';
 import { COLOR, makeLabel, makeRect, panelWithShadow, pillButton, restyleCard, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 export interface UpgradeData {
   coins: number;
@@ -28,7 +29,7 @@ export class UpgradeView {
     this.overlay = makeRect('upgrade-overlay', parent, 960, 640, 0, 0, new Color(0, 0, 0, 90));
     this.overlay.active = false;
 
-    this.panel = panelWithShadow('upgrade-panel', parent, 520, 320, 0, 0, 20, COLOR.panel, COLOR.border);
+    this.panel = ArtService.panelWithArt('upgrade-panel', parent, 'panel-popup', 520, 320, 0, 0);
     this.panel.active = false;
     makeLabel('up-title', this.panel, '✨ 餐厅升级', 24, 0, 120, COLOR.text);
     this.infoLabel = makeLabel('info', this.panel, '', 16, 0, 78, COLOR.subtext);

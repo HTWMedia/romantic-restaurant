@@ -1,6 +1,7 @@
 import { Button, Color, Graphics, Label, Node } from 'cc';
 import { DialogueLine } from '../core/chapters';
 import { COLOR, makeLabel, makeRect, panelWithShadow } from './Widgets';
+import { ArtService } from './ArtView';
 
 export class DialogueView {
   private overlay!: Node;
@@ -17,7 +18,7 @@ export class DialogueView {
     this.overlay.active = false;
     this.overlay.on(Node.EventType.TOUCH_START, () => this.next());
 
-    this.panel = panelWithShadow('dlg-panel', parent, 760, 200, 0, -200, 20, COLOR.panel, COLOR.border);
+    this.panel = ArtService.panelWithArt('dlg-panel', parent, 'panel-dialogue', 760, 200, 0, -200);
     this.panel.active = false;
     this.avatar = makeLabel('dlg-avatar', this.panel, '🙂', 54, -300, 0, COLOR.text);
     this.nameL = makeLabel('dlg-name', this.panel, '', 20, -170, 60, COLOR.primary);

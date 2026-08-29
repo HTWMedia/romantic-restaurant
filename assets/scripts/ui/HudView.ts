@@ -1,5 +1,6 @@
 import { Color, Label, Node, tween, Vec3 } from 'cc';
 import { COLOR, makeLabel, pillButton, panelWithShadow, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 export interface HudData {
   coins: number;
@@ -20,7 +21,7 @@ export class HudView {
   private lastCoins = -1;
 
   constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void) {
-    panelWithShadow('hud-bg', parent, 920, 58, 0, 293, 16, COLOR.panel, COLOR.border);
+    ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
     // 金币徽章块
     roundRect('coin-badge', parent, 150, 38, -410, 293, 19, new Color(255, 201, 77, 60));

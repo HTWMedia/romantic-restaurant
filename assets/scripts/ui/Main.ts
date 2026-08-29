@@ -47,6 +47,7 @@ export class Main extends Component {
   private decorNodes: Node[] = [];
   private energyTimer = 0;
   private orderBoard!: Node;
+  private orderList!: Node;
   private orderSig = '';
 
   onLoad(): void {
@@ -121,7 +122,8 @@ export class Main extends Component {
       if (first) this.dialogue.play(first.intro, () => {});
     }
 
-    this.orderBoard = makeNode('order-board', this.node, 920, 40, 0, 235);
+    this.orderBoard = ArtService.panelWithArt('order-board', this.node, 'panel-orderboard', 920, 40, 0, 235);
+    this.orderList = makeNode('order-list', this.orderBoard, 920, 40, 0, 0);
     this.refreshAll();
   }
 
@@ -338,10 +340,10 @@ export class Main extends Component {
     const sig = pending.map(c => c.dish.id).join(',');
     if (sig === this.orderSig) return;
     this.orderSig = sig;
-    this.orderBoard.removeAllChildren();
-    makeLabel('ob-title', this.orderBoard, '📋 待办订单', 14, -430, 0, COLOR.subtext);
+    this.orderList.removeAllChildren();
+    makeLabel('ob-title', this.orderList, '📋 待办订单', 14, -430, 0, COLOR.subtext);
     pending.slice(0, 8).forEach((c, i) => {
-      const t = roundRect(`ob-${i}`, this.orderBoard, 90, 30, -330 + i * 100, 0, 8, COLOR.panel, COLOR.border);
+      const t = roundRect(`ob-${i}`, this.orderList, 90, 30, -330 + i * 100, 0, 8, COLOR.panel, COLOR.border);
       makeLabel(`obt-${i}`, t, c.dish.name, 13, 0, 0, COLOR.text);
     });
   }

@@ -2,6 +2,7 @@ import { Button, Color, Label, Node } from 'cc';
 import { CHAPTERS } from '../core/chapters';
 import { GameData } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, panelWithShadow, pillButton } from './Widgets';
+import { ArtService } from './ArtView';
 
 export class ChapterView {
   private overlay!: Node;
@@ -16,7 +17,7 @@ export class ChapterView {
     this.overlay.active = false;
     this.overlay.on(Node.EventType.TOUCH_START, () => this.close());
 
-    this.panel = panelWithShadow('ch-panel', parent, 560, 400, 0, 0, 20, COLOR.panel, COLOR.border);
+    this.panel = ArtService.panelWithArt('ch-panel', parent, 'panel-popup', 560, 400, 0, 0);
     this.panel.active = false;
     makeLabel('ch-title', this.panel, '📖 经营目标', 24, 0, 160, COLOR.text);
     this.subL = makeLabel('ch-sub', this.panel, '', 18, 0, 120, COLOR.primary);

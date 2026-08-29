@@ -1,6 +1,7 @@
 import { Button, Color, Label, Node, Vec3 } from 'cc';
 import { Dish } from '../core/types';
 import { COLOR, makeLabel, panelWithShadow, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 export class MenuView {
   private root!: Node;
@@ -11,7 +12,7 @@ export class MenuView {
     private onSelect: (id: string) => void,
     private onTryUnlock: (id: string) => void,
   ) {
-    this.root = panelWithShadow('menu-panel', parent, 920, 110, 0, -265, 16, COLOR.panel, COLOR.border);
+    this.root = ArtService.panelWithArt('menu-panel', parent, 'panel-menu', 920, 110, 0, -265);
     makeLabel('title', parent, '菜谱', 18, -420, -300, COLOR.text);
   }
 

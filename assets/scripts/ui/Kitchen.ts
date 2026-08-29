@@ -1,6 +1,7 @@
 import { Color, Graphics, Label, Node, tween, Vec3 } from 'cc';
 import { Dish } from '../core/types';
 import { COLOR, makeLabel, makeNode, panelWithShadow, roundRect } from './Widgets';
+import { ArtService } from './ArtView';
 
 interface Slot {
   dish: Dish | null;
@@ -29,7 +30,7 @@ export class Kitchen {
     private cookTimeOf: (dish: Dish) => number,
     slotCount: number,
   ) {
-    panelWithShadow('kitchen-panel', parent, 300, 200, x, y, 16, COLOR.panel, COLOR.border);
+    ArtService.panelWithArt('kitchen-panel', parent, 'panel-popup', 300, 200, x, y);
     makeLabel('title', parent, '🍳 厨房', 18, x, y + 78, COLOR.text);
     this.hintLabel = makeLabel('kitchen-hint', parent, '', 13, x, y - 88, COLOR.subtext);
     this.slotLayer = makeNode('kitchen-slots', parent, 300, 140, x, y + 6);
