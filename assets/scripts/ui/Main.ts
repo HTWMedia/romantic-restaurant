@@ -193,13 +193,15 @@ export class Main extends Component {
   }
 
   private buildBackground(): void {
-    const art = ArtService.makeSprite(this.node, 'bg', 960, 640, 0, 0, 'bg');
+    const frame = makeRect('bg-frame', this.node, 960, 640, 0, 0, new Color(20, 16, 24, 255));
+    frame.setSiblingIndex(0);
+    const art = ArtService.makeSprite(this.node, 'bg', 900, 600, 0, 0, 'bg');
     if (art) {
-      art.setSiblingIndex(0);
+      art.setSiblingIndex(1);
       return;
     }
-    const rect = makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
-    rect.setSiblingIndex(0);
+    const rect = makeRect('bg', this.node, 900, 600, 0, 0, COLOR.bg);
+    rect.setSiblingIndex(1);
   }
 
   private buildTables(): void {
@@ -397,19 +399,19 @@ export class Main extends Component {
     const hasBg = ArtService.hasArt('bg');
     const alpha = hasBg ? 40 : 255;
     const bg = new Color(skin.bg.r, skin.bg.g, skin.bg.b, alpha);
-    tint = makeRect('skin-tint', this.node, 960, 640, 0, 0, bg);
-    tint.setSiblingIndex(1);
+    tint = makeRect('skin-tint', this.node, 900, 600, 0, 0, bg);
+    tint.setSiblingIndex(2);
     for (const d of this.decorNodes) d.destroy();
     this.decorNodes = [];
     for (const p of skin.decor) {
       const art = ArtService.makeSprite(this.node, p.artKey, 88, 88, p.x, p.y, `decor-art-${p.artKey}`);
       if (art) {
-        art.setSiblingIndex(2);
+        art.setSiblingIndex(3);
         this.decorNodes.push(art);
         continue;
       }
       const l = makeLabel(`decor-${p.emoji}`, this.node, p.emoji, 40, p.x, p.y, COLOR.text);
-      l.node.setSiblingIndex(2);
+      l.node.setSiblingIndex(3);
       this.decorNodes.push(l.node);
     }
   }
