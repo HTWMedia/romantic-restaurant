@@ -9,6 +9,7 @@ import {
 import { CustomerView } from './CustomerView';
 import { Kitchen } from './Kitchen';
 import { HudView } from './HudView';
+import { MergeView } from './MergeView';
 import { MenuView } from './MenuView';
 import { UpgradeView } from './UpgradeView';
 import { DialogueView } from './DialogueView';
@@ -35,6 +36,7 @@ export class Main extends Component {
   private menu!: MenuView;
   private kitchen!: Kitchen;
   private upgrade!: UpgradeView;
+  private merge!: MergeView;
 
   private tables: { node: Node; x: number }[] = [];
   private customers: CustomerView[] = [];
@@ -80,6 +82,7 @@ export class Main extends Component {
       },
       () => this.openChapters(),
       () => this.onAdButton(),
+      () => this.merge.open(),
     );
     this.hud.setCombo(0, 1);
 
@@ -114,6 +117,8 @@ export class Main extends Component {
       () => { this.refreshHud(); this.saveGame(); },
     );
     this.applySkin();
+
+    this.merge = new MergeView(this.node, this.data, () => this.saveGame());
 
     // 首次进入播放开场剧情
     if (!this.data.introPlayed) {

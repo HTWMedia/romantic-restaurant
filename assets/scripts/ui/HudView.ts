@@ -22,7 +22,7 @@ export class HudView {
   private energyHasIcon = false;
   private custHasIcon = false;
 
-  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void) {
+  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void) {
     ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
     // 金币徽章块
@@ -33,7 +33,7 @@ export class HudView {
     this.coinsLabel.isBold = true;
 
     // 体力按钮（点=看广告恢复）
-    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -270, 293, COLOR.primary, '12/12', adCb);
+    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -300, 293, COLOR.primary, '12/12', adCb);
     this.energyLabel = this.energyBtn.getComponentInChildren(Label)!;
     const energyIcon = ArtService.attachIconSprite(this.energyBtn, 'icon-energy', -38, 0, 26);
     this.energyHasIcon = energyIcon !== null;
@@ -54,6 +54,7 @@ export class HudView {
     this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 335, 293, COLOR.accent, '第1章', chapterCb);
     ArtService.attachIconSprite(this.chapterBtn, 'icon-chapter', -30, 0, 24);
 
+    pillButton('merge-btn', parent, 80, 34, -195, 293, COLOR.accent, '合成台', mergeCb);
     pillButton('upgrade-btn', parent, 90, 34, 435, 293, COLOR.primary, '升级', upgradeCb);
   }
 
