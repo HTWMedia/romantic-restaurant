@@ -1,4 +1,4 @@
-import { Color, Label, Node, tween, Vec3 } from 'cc';
+import { Button, Color, Label, Node, tween, Vec3 } from 'cc';
 import { COLOR, makeLabel, pillButton, panelWithShadow, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
 
@@ -25,47 +25,60 @@ export class HudView {
   constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void) {
     ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
-    // 金币徽章块
-    roundRect('coin-badge', parent, 150, 38, -410, 293, 19, new Color(255, 201, 77, 60));
-    const coinIcon = ArtService.attachIconSprite(parent, 'icon-coin', -460, 293, 26);
-    if (!coinIcon) makeLabel('coin-icon', parent, '🪙', 20, -460, 293, COLOR.accent);
-    this.coinsLabel = makeLabel('coins', parent, '0', 20, -370, 293, COLOR.text);
+    // —— 左组：金币 / 体力 / 在店 / 合成台 ——
+    roundRect('coin-badge', parent, 110, 38, -395, 293, 19, new Color(255, 201, 77, 60));
+    const coinIcon = ArtService.attachIconSprite(parent, 'icon-coin', -432, 293, 26);
+    if (!coinIcon) makeLabel('coin-icon', parent, '🪙', 20, -432, 293, COLOR.accent);
+    this.coinsLabel = makeLabel('coins', parent, '0', 20, -378, 293, COLOR.text);
     this.coinsLabel.isBold = true;
 
-    // 体力按钮（点=看广告恢复）
-    this.energyBtn = pillButton('energy-btn', parent, 120, 34, -300, 293, COLOR.primary, '12/12', adCb);
-    this.energyLabel = this.energyBtn.getComponentInChildren(Label)!;
-    const energyIcon = ArtService.attachIconSprite(this.energyBtn, 'icon-energy', -38, 0, 26);
-    this.energyHasIcon = energyIcon !== null;
+    const energy = this.iconPill('energy-btn', parent, 96, -282, COLOR.primary, 'icon-energy', '⚡', adCb);
+    this.energyBtn = energy.node;
+    this.energyLabel = energy.label;
+    this.energyHasIcon = energy.hasIcon;
 
-    // 在店人数
-    const custIcon = ArtService.attachIconSprite(parent, 'icon-customer', -128, 293, 24);
-    this.custHasIcon = custIcon !== null;
-    this.custLabel = makeLabel('customers', parent, '在店 0', 18, -112, 293, COLOR.text);
+    const cust = this.iconPill('cust-pill', parent, 96, -174, new Color(255, 201, 77, 60), 'icon-customer', '🧑', null);
+    this.custHasIcon = cust.hasIcon;
+    this.custLabel = cust.label;
 
-    // 等级标签
-    this.tableLevelLabel = this.tag(parent, '桌 L1', 170);
-    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 250);
-
-    this.comboLabel = makeLabel('combo', parent, '', 18, 70, 293, COLOR.accent);
+    pillButton('merge-btn', parent, 88, 34, -74, 293, COLOR.accent, '合成台', mergeCb);
+    this.comboLabel = makeLabel('combo', parent, '', 15, 17, 293, COLOR.accent);
     this.comboLabel.isBold = true;
     this.comboLabel.node.active = false;
 
-    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 335, 293, COLOR.accent, '第1章', chapterCb);
-    ArtService.attachIconSprite(this.chapterBtn, 'icon-chapter', -30, 0, 24);
+    // —— 右组：桌等级 / 厨等级 / 章节 / 升级 ——
+    this.tableLevelLabel = this.tag(parent, '桌 L1', 100);
+    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 184);
+    this.chapterBtn = pillButton('chapter-btn', parent, 126, 34, 295, 293, COLOR.accent, '第1章', chapterCb);
+    pillButton('upgrade-btn', parent, 80, 34, 410, 293, COLOR.primary, '升级', upgradeCb);
+  }
 
-    pillButton('merge-btn', parent, 80, 34, -195, 293, COLOR.accent, '合成台', mergeCb);
-    pillButton('upgrade-btn', parent, 90, 34, 435, 293, COLOR.primary, '升级', upgradeCb);
+  /** 图标 + 数字的药丸：图标固定在左侧，文字在剩余空间居中，互不重叠 */
+  private iconPill(
+    name: string, parent: Node, w: number, x: number,
+    bg: Color, iconKey: string, fallbackIcon: string, cb: (() => void) | null,
+  ): { node: Node; label: Label; hasIcon: boolean } {
+    const y = 293;
+    const h = 34;
+    const n = roundRect(name, parent, w, h, x, y, h / 2, bg);
+    if (cb) {
+      n.addComponent(Button);
+      n.on(Button.EventType.CLICK, cb);
+    }
+    const hasIcon = ArtService.attachIconSprite(n, iconKey, -w / 2 + 22, 0, 26) !== null;
+    if (!hasIcon) makeLabel(name + '-ic', n, fallbackIcon, 18, -w / 2 + 22, 0, COLOR.accent);
+    const label = makeLabel(name + '-text', n, '', 16, 16, 0, COLOR.text);
+    return { node: n, label, hasIcon };
   }
 
   setChapter(index: number, total: number, stars: number): void {
     const label = this.chapterBtn.getComponentInChildren(Label)!;
-    label.string = `${ArtService.hasArt('icon-chapter') ? '' : '📖 '}第${index + 1}/${total}章 ⭐${stars}`;
+    label.string = `第${index + 1}/${total}章 ⭐${stars}`;
+    label.fontSize = 15;
   }
 
   setEnergy(cur: number, max: number): void {
-    const base = cur <= 0 ? '看广告恢复' : `${cur}/${max}`;
-    this.energyLabel.string = this.energyHasIcon ? base : `⚡ ${base}`;
+    this.energyLabel.string = cur <= 0 ? '看广告' : `${cur}/${max}`;
   }
 
   setCombo(combo: number, mult: number): void {
@@ -74,7 +87,7 @@ export class HudView {
       return;
     }
     this.comboLabel.node.active = true;
-    this.comboLabel.string = `连击 x${combo}（${mult.toFixed(1)}倍）`;
+    this.comboLabel.string = `x${combo} · ${mult.toFixed(1)}倍`;
     tween(this.comboLabel.node)
       .to(0.12, { scale: new Vec3(1.2, 1.2, 1) })
       .to(0.12, { scale: new Vec3(1, 1, 1) })
@@ -82,7 +95,7 @@ export class HudView {
   }
 
   private tag(parent: Node, text: string, x: number): Label {
-    roundRect(`tag-bg`, parent, 92, 26, x, 293, 13, new Color(255, 138, 92, 40));
+    roundRect(`tag-bg`, parent, 72, 26, x, 293, 13, new Color(255, 138, 92, 40));
     return makeLabel(`tag-text`, parent, text, 14, x, 293, COLOR.text);
   }
 
@@ -95,7 +108,7 @@ export class HudView {
         .to(0.12, { scale: new Vec3(1, 1, 1) })
         .start();
     }
-    this.custLabel.string = `${this.custHasIcon ? '' : '🧑 '}在店 ${d.customers}`;
+    this.custLabel.string = `在店 ${d.customers}`;
     this.tableLevelLabel.string = `桌 L${d.tableLevel}`;
     this.kitchenLevelLabel.string = `厨 L${d.kitchenLevel}`;
   }

@@ -1,8 +1,7 @@
 import { Color, Graphics, Label, Node, tween, Vec3 } from 'cc';
 import { Dish } from '../core/types';
-import { COLOR, makeLabel, makeNode, panelWithShadow, roundRect } from './Widgets';
+import { COLOR, makeLabel, makeNode, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
-
 interface Slot {
   dish: Dish | null;
   remain: number;
@@ -23,7 +22,6 @@ export class Kitchen {
 
   private slots: Slot[] = [];
   private slotLayer!: Node;
-  private hintLabel!: Label;
   private slotCount = 1;
 
   constructor(
@@ -31,10 +29,8 @@ export class Kitchen {
     private cookTimeOf: (dish: Dish) => number,
     slotCount: number,
   ) {
-    ArtService.panelWithArt('kitchen-panel', parent, 'panel-popup', 300, 200, x, y);
-    makeLabel('title', parent, '🍳 厨房', 18, x, y + 78, COLOR.text);
-    this.hintLabel = makeLabel('kitchen-hint', parent, '', 13, x, y - 88, COLOR.subtext);
-    this.slotLayer = makeNode('kitchen-slots', parent, 300, 140, x, y + 6);
+    // 无面板：只渲染一排小灶位图标，挂在顶部订单条下方，不遮挡场景
+    this.slotLayer = makeNode('kitchen-slots', parent, 220, 50, x, y);
     this.setSlotCount(slotCount);
   }
 
@@ -44,16 +40,19 @@ export class Kitchen {
     this.slotCount = n;
     this.slotLayer.removeAllChildren();
     this.slots = [];
-    const gap = 58;
+    const gap = 42;
     const startX = -((n - 1) * gap) / 2;
     for (let i = 0; i < n; i++) {
-      const root = makeNode(`slot-${i}`, this.slotLayer, 56, 92, startX + i * gap, 0);
-      const ring = roundRect('ring', root, 50, 50, 0, 10, 25, COLOR.panel, COLOR.border).getComponent(Graphics)!;
-      const center = makeLabel('center', root, '', 16, 0, 10, COLOR.text);
-      const name = makeLabel('name', root, '', 11, 0, -32, COLOR.subtext);
+      const root = makeNode(`slot-${i}`, this.slotLayer, 44, 52, startX + i * gap, 0);
+      // 深色底衬让白色灶位圈和文字在浅色背景上可读
+      const back = roundRect('back', root, 42, 50, 0, 0, 10, new Color(60, 45, 30, 100));
+      back;
+      const ring = roundRect('ring', root, 34, 34, 0, 8, 17, COLOR.white, COLOR.border).getComponent(Graphics)!;
+      const center = makeLabel('center', root, '', 14, 0, 8, COLOR.text);
+      center.isBold = true;
+      const name = makeLabel('name', root, '', 11, 0, -18, COLOR.white);
       this.slots.push({ dish: null, remain: 0, total: 0, ready: false, plated: 0, root, ring, center, name, dishArt: null });
     }
-    this.hintLabel.string = `可同时烹饪 ${n} 道菜`;
   }
 
   /** 把一道菜放进空闲槽开始做；满槽返回 false */
@@ -108,39 +107,41 @@ export class Kitchen {
     const hasDishArt = s.dish !== null && ArtService.hasArt(s.dish.artKey);
     if (!hasDishArt && s.dishArt) { s.dishArt.destroy(); s.dishArt = null; }
     if (hasDishArt && !s.dishArt) {
-      s.dishArt = ArtService.makeSprite(s.root, s.dish!.artKey, 34, 34, 0, 10, 'dish-art');
+      s.dishArt = ArtService.makeSprite(s.root, s.dish!.artKey, 26, 26, 0, 8, 'dish-art');
     }
     const g = s.ring;
     g.clear();
-    const r = 23;
-    g.lineWidth = 6;
+    const r = 15;
+    g.lineWidth = 5;
     g.strokeColor = COLOR.border;
-    g.circle(0, 0, r);
+    g.circle(0, 8, r);
     g.stroke();
     if (s.dish === null) {
-      s.center.string = '·';
+      s.center.string = '空';
       s.center.color = COLOR.subtext;
       s.name.string = '空闲';
-      s.center.node.setPosition(0, 10);
+      s.name.color = COLOR.white;
+      s.center.node.setPosition(0, 8);
       return;
     }
-    const centerY = hasDishArt ? 30 : 10;
-    s.center.node.setPosition(0, centerY);
+    s.center.node.setPosition(0, 8);
     if (s.ready) {
       s.center.string = '✓';
       s.center.color = COLOR.green;
       g.strokeColor = COLOR.green;
       g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2, false);
       g.stroke();
-      s.name.string = s.dish.name;
+      s.name.string = `${s.dish.name} ✓`;
+      s.name.color = COLOR.green;
     } else {
       const p = s.total > 0 ? 1 - s.remain / s.total : 0;
-      s.center.string = `${Math.ceil(s.remain)}`;
+      s.center.string = `${Math.ceil(s.remain)}s`;
       s.center.color = COLOR.text;
       g.strokeColor = COLOR.primary;
       g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p, false);
       g.stroke();
       s.name.string = s.dish.name;
+      s.name.color = COLOR.white;
     }
   }
 }

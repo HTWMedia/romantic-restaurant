@@ -1,14 +1,16 @@
 import { Layers, Node, resources, Sprite, SpriteFrame } from 'cc';
 import { ART_MANIFEST, hasArt, markLoaded } from '../core/art';
-import { COLOR, makeNode, makeRect, roundRect } from './Widgets';
+import { COLOR, makeNode, roundRect } from './Widgets';
 
 // 9-slice 内边距（单位：源图像素，出图规格为 2×显示尺寸）
+// l/r 必须覆盖两端圆弧的宽度（panel-dialogue 为整半圆胶囊头，约 200px），
+// 否则 SLICED 拉伸时圆弧过渡段会被横向拉平
 const PANEL_INSETS: Record<string, { l: number; r: number; t: number; b: number }> = {
-  'panel-hud':        { l: 120, r: 120, t: 16, b: 16 },
-  'panel-orderboard': { l: 160, r: 160, t: 16, b: 16 },
-  'panel-menu':       { l: 160, r: 160, t: 16, b: 16 },
-  'panel-dialogue':   { l: 80,  r: 80,  t: 80,  b: 80 },
-  'panel-popup':      { l: 100, r: 100, t: 100, b: 100 },
+  'panel-hud':        { l: 130, r: 130, t: 28, b: 28 },
+  'panel-orderboard': { l: 160, r: 160, t: 18, b: 18 },
+  'panel-menu':       { l: 160, r: 160, t: 24, b: 24 },
+  'panel-dialogue':   { l: 210, r: 210, t: 60, b: 60 },
+  'panel-popup':      { l: 130, r: 130, t: 130, b: 130 },
 };
 
 export class ArtService {
@@ -59,9 +61,10 @@ export class ArtService {
     const n = makeNode(name ?? `art-${key}`, parent, w, h, x, y);
     n.layer = Layers.Enum.UI_2D;
     const sp = n.addComponent(Sprite);
-    sp.spriteFrame = sf;
+    // sizeMode 必须先于 spriteFrame：默认 TRIMMED 会在赋图时把节点尺寸改成图片原始尺寸
     sp.sizeMode = Sprite.SizeMode.CUSTOM;
     sp.type = Sprite.Type.SIMPLE;
+    sp.spriteFrame = sf;
     return n;
   }
 
@@ -74,7 +77,7 @@ export class ArtService {
     const n = makeNode(name ?? `art-${key}`, parent, w, h, x, y);
     n.layer = Layers.Enum.UI_2D;
     const sp = n.addComponent(Sprite);
-    sp.spriteFrame = sf;
+    // 同 makeSprite：sizeMode 先行，防止赋图时节点尺寸被改成原始尺寸
     sp.sizeMode = Sprite.SizeMode.CUSTOM;
     const ins = PANEL_INSETS[key];
     if (ins) {
@@ -86,6 +89,7 @@ export class ArtService {
     } else {
       sp.type = Sprite.Type.SIMPLE;
     }
+    sp.spriteFrame = sf;
     return n;
   }
 
@@ -93,10 +97,13 @@ export class ArtService {
     name: string, parent: Node, key: string, w: number, h: number,
     x: number, y: number,
   ): Node {
-    makeRect(name + '-shadow', parent, w, h, x, y - 4, COLOR.shadow);
-    const art = ArtService.makePanel(parent, key, w, h, x, y, name);
-    if (art) return art;
-    return roundRect(name, parent, w, h, x, y, 16, COLOR.panel, COLOR.border);
+    // 投影必须是面板的子节点：作为兄弟节点时面板隐藏（active=false）后投影会残留
+    const root = makeNode(name, parent, w, h, x, y);
+    const radius = Math.min(h / 2, 24);
+    roundRect(name + '-shadow', root, w, h, 0, -4, radius, COLOR.shadow);
+    const art = this.makePanel(root, key, w, h, 0, 0, name + '-art');
+    if (!art) roundRect(name + '-bg', root, w, h, 0, 0, 16, COLOR.panel, COLOR.border);
+    return root;
   }
 
   /** 给既有按钮/面板补一个图标 Sprite（有图才加，缺图返回 null，调用方维持原样） */

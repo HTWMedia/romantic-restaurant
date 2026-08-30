@@ -47,6 +47,12 @@ export class SkinView {
       const skinIcon = ArtService.attachIconSprite(row, s.iconArtKey, -200, 0, 40);
       if (!skinIcon) makeLabel(`skin-ic-${i}`, row, s.icon, 28, -200, 0, COLOR.text);
       makeLabel(`skin-nm-${i}`, row, s.name, 18, -150, 8, COLOR.text);
+      // 装修加成说明
+      const eff: string[] = [];
+      if (s.bonus.wait) eff.push(`顾客耐心 +${s.bonus.wait * 10}%`);
+      if (s.bonus.coin) eff.push(`每单收入 +${s.bonus.coin * 10}%`);
+      if (s.bonus.cook) eff.push(`烹饪速度 +${s.bonus.cook * 10}%`);
+      makeLabel(`skin-eff-${i}`, row, eff.length ? eff.join(' / ') : '基础装修', 11, -60, -16, COLOR.subtext);
       const owned = data.skinOwned(s.id);
       const active = data.activeSkinId === s.id;
       const right = makeLabel(`skin-st-${i}`, row, '', 16, 150, 0, COLOR.subtext);

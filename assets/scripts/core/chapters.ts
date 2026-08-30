@@ -113,3 +113,23 @@ export const CHAPTERS: Chapter[] = [
     ],
   },
 ];
+// 合成台解锁新菜时的剧情反应：合成台是"小柒研发新菜"的工坊，
+// 每条链的最终菜解锁时，由店里的人给出一句回应，把玩法挂回经营叙事。
+export const DISH_UNLOCK_SCRIPT: Record<string, DialogueLine[]> = {
+  pizza: [
+    { who: '小柒', emoji: '🙋‍♀️', artKey: 'char-xiaoqi', text: '蔬菜披萨出炉！从一棵生菜到一张披萨，我们的研发台立功了。' },
+    { who: '糖糖', emoji: '👧', artKey: 'char-tangtang', text: '披萨上有小森林耶！妈妈我可以吃第一块吗？' },
+  ],
+  steak: [
+    { who: '老周', emoji: '🧑', artKey: 'char-laozhou', text: '哟，菜单悄悄换了？这牛排的火候……有点当年老店的意思了。' },
+    { who: '小柒', emoji: '🙋‍♀️', artKey: 'char-xiaoqi', text: '老周叔这张嘴能认可，合成台上蹲的这几天就没白费！' },
+  ],
+  dessert: [
+    { who: '糖糖', emoji: '👧', artKey: 'char-tangtang', text: '甜品像云朵一样软！妈妈是魔法师吗？' },
+    { who: '小柒', emoji: '🙋‍♀️', artKey: 'char-xiaoqi', text: '傻瓜，新招牌要让日子也甜一点呀。' },
+  ],
+  pasta: [
+    { who: '小柒', emoji: '🙋‍♀️', artKey: 'char-xiaoqi', text: '奶酪意面出锅！从一团面团到一盘意面，我们真的做到了。' },
+    { who: '老周', emoji: '🧑', artKey: 'char-laozhou', text: '给我来一份，吃完写进"老周食记"里。' },
+  ],
+};

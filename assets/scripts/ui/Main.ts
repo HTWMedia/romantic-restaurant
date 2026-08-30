@@ -1,7 +1,10 @@
 import { _decorator, Component, Color, Graphics, Node } from 'cc';
 import { GameData } from '../core/gameData';
-import { StorageService, BrowserKVStore } from '../core/storage';
+import { StorageService } from '../core/storage';
+import { createAdStrategy, createKVStore } from '../core/platform';
 import { dishById, DISHES } from '../core/dishes';
+
+const AD_SEC = 15; // 模拟广告时长（秒）
 import { CustomerState, Dish } from '../core/types';
 import {
   cookTimeAtLevel, tableCountAtLevel, tableUpgradeCost, kitchenUpgradeCost, kitchenSlotCount,
@@ -10,13 +13,14 @@ import { CustomerView } from './CustomerView';
 import { Kitchen } from './Kitchen';
 import { HudView } from './HudView';
 import { MergeView } from './MergeView';
+import { RecipeCard } from './RecipeCard';
 import { MenuView } from './MenuView';
 import { UpgradeView } from './UpgradeView';
 import { DialogueView } from './DialogueView';
 import { ChapterView } from './ChapterView';
 import { AdView } from './AdView';
 import { SkinView } from './SkinView';
-import { CHAPTERS } from '../core/chapters';
+import { CHAPTERS, DISH_UNLOCK_SCRIPT } from '../core/chapters';
 import { skinById } from '../core/skins';
 import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
@@ -41,8 +45,11 @@ export class Main extends Component {
   private tables: { node: Node; x: number }[] = [];
   private customers: CustomerView[] = [];
   private spawnTimer = 2;
+  // 玩法层：桌椅/顾客/餐盘都装这里，面板弹窗在其上，动态节点再多也不会盖住弹窗
+  private gameLayer!: Node;
 
   private combo = 0;
+  private adBusy = false; // 平台广告播放中（微信原生广告没有 isPlaying 可查）
   private dialogue!: DialogueView;
   private chapterView!: ChapterView;
   private adView!: AdView;
@@ -54,7 +61,7 @@ export class Main extends Component {
   private orderSig = '';
 
   onLoad(): void {
-    this.storage = new StorageService(new BrowserKVStore());
+    this.storage = new StorageService(createKVStore());
     this.data = new GameData(this.storage.load());
     void ArtService.preload().then(() => {
       if (!this.isValid || !this.node.isValid) return;
@@ -65,12 +72,14 @@ export class Main extends Component {
 
   private buildGame(): void {
     this.buildBackground();
+    this.gameLayer = makeNode('game-layer', this.node, 960, 640, 0, 0);
     this.buildDecor();
     this.buildTables();
 
     this.kitchen = new Kitchen(
-      this.node, 330, -80,
-      d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel),
+      this.node, 340, -70,
+      d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel) *
+        (1 - skinById(this.data.activeSkinId).bonus.cook * 0.1),
       kitchenSlotCount(this.data.kitchenLevel),
     );
     this.kitchen.onSlotReady = () => Sfx.cook();
@@ -118,7 +127,13 @@ export class Main extends Component {
     );
     this.applySkin();
 
-    this.merge = new MergeView(this.node, this.data, () => this.saveGame());
+    this.merge = new MergeView(this.node, this.data, () => {
+      this.saveGame();
+      this.refreshHud();
+    }, dishId => {
+      const lines = DISH_UNLOCK_SCRIPT[dishId];
+      if (lines) this.dialogue.play(lines);
+    });
 
     // 首次进入播放开场剧情
     if (!this.data.introPlayed) {
@@ -193,19 +208,29 @@ export class Main extends Component {
   }
 
   private watchAd(reward: () => void, title: string): void {
-    if (this.adView.isPlaying) return;
-    this.adView.play(3, reward, title);
+    if (this.adView.isPlaying || this.adBusy) return;
+    // 微信小游戏：平台自带广告 UI，直接播放；浏览器预览：走游戏内模拟倒计时面板
+    const strategy = createAdStrategy();
+    if (strategy.native) {
+      this.adBusy = true;
+      strategy.play(rewarded => {
+        this.adBusy = false;
+        if (rewarded) reward();
+      });
+      return;
+    }
+    this.adView.play(AD_SEC, reward, title);
   }
 
   private buildBackground(): void {
     const frame = makeRect('bg-frame', this.node, 960, 640, 0, 0, new Color(20, 16, 24, 255));
     frame.setSiblingIndex(0);
-    const art = ArtService.makeSprite(this.node, 'bg', 900, 600, 0, 0, 'bg');
+    const art = ArtService.makeSprite(this.node, 'bg', 960, 640, 0, 0, 'bg');
     if (art) {
       art.setSiblingIndex(1);
       return;
     }
-    const rect = makeRect('bg', this.node, 900, 600, 0, 0, COLOR.bg);
+    const rect = makeRect('bg', this.node, 960, 640, 0, 0, COLOR.bg);
     rect.setSiblingIndex(1);
   }
 
@@ -213,42 +238,55 @@ export class Main extends Component {
     for (const t of this.tables) t.node.destroy();
     const count = tableCountAtLevel(this.data.tableLevel);
     this.tables = [];
-    const startX = -((count - 1) * 130) / 2;
+    const startX = -((count - 1) * 200) / 2;
     for (let i = 0; i < count; i++) {
-      const x = startX + i * 130;
-      const node = makeNode(`table-${i}`, this.node, 90, 40, x, -40);
+      const x = startX + i * 200;
+      const node = makeNode(`table-${i}`, this.gameLayer, 140, 100, x, -176);
       const g = node.addComponent(Graphics);
-      g.fillColor = COLOR.panel;
-      g.roundRect(-45, -18, 90, 18, 8);
+      // 自上而下：地面投影 → 桌腿 → 前缘 → 桌面（rel 值越小越靠屏幕下方）
+      g.fillColor = COLOR.shadow;
+      g.roundRect(-70, -48, 140, 14, 7);
+      g.fill();
+      g.fillColor = new Color(214, 170, 122, 255);
+      g.roundRect(-52, -42, 12, 30, 3);
+      g.fill();
+      g.roundRect(40, -42, 12, 30, 3);
+      g.fill();
+      g.fillColor = new Color(226, 180, 130, 255);
+      g.roundRect(-70, -22, 140, 18, 6);
+      g.fill();
+      g.fillColor = new Color(247, 230, 205, 255);
+      g.roundRect(-70, -2, 140, 22, 10);
       g.fill();
       g.lineWidth = 2;
       g.strokeColor = COLOR.border;
       g.stroke();
-      g.fillColor = new Color(255, 255, 255, 60);
-      g.roundRect(-40, -14, 80, 4, 2);
-      g.fill();
-      g.fillColor = COLOR.decor;
-      g.rect(-38, -22, 8, 10);
-      g.fill();
-      g.rect(30, -22, 8, 10);
+      g.fillColor = new Color(255, 255, 255, 70);
+      g.roundRect(-60, 2, 120, 6, 3);
       g.fill();
       this.tables.push({ node, x });
+    }
+    // 桌位重建后让已入座顾客搬到新坐标（跳过已销毁/已离场的）
+    for (const c of this.customers) {
+      if (c.isGone || !c.node.isValid) continue;
+      const t = this.tables[c.tableIndex];
+      if (t) c.syncTable(t.x, -176);
     }
   }
 
   private buildDecor(): void {
     if (ArtService.hasArt('bg')) return;
-    const floor = makeNode('floor', this.node, 960, 4, 0, -60);
+    const floor = makeNode('floor', this.gameLayer, 960, 4, 0, -60);
     const fg = floor.addComponent(Graphics);
     fg.fillColor = COLOR.decor;
     fg.rect(-480, -2, 960, 4);
     fg.fill();
 
-    const pic = roundRect('pic', this.node, 60, 50, -420, 200, 8, COLOR.panel, COLOR.border);
+    const pic = roundRect('pic', this.gameLayer, 60, 50, -420, 200, 8, COLOR.panel, COLOR.border);
     makeLabel('pic-content', pic, '🌻', 30, 0, 0);
 
-    makeLabel('plant-l', this.node, '🪴', 44, -450, -30, COLOR.text);
-    makeLabel('plant-r', this.node, '🪴', 44, 450, -30, COLOR.text);
+    makeLabel('plant-l', this.gameLayer, '🪴', 44, -450, -30, COLOR.text);
+    makeLabel('plant-r', this.gameLayer, '🪴', 44, 450, -30, COLOR.text);
   }
 
   private updateSpawn(dt: number): void {
@@ -272,16 +310,29 @@ export class Main extends Component {
     const artKey = pool.length > 0
       ? pool[Math.floor(Math.random() * pool.length)]
       : CUSTOMER_ART[Math.floor(Math.random() * CUSTOMER_ART.length)];
+    try {
     const c = new CustomerView(
-      this.node, table.x + 64, -6, dish, tableIndex, artKey, table.x, -40,
+      this.gameLayer, table.x, -124, dish, tableIndex, artKey, table.x, -176,
       c2 => this.onCustomerLeave(c2),
+      d => RecipeCard.show(this.node, d, this.data),
     );
-    this.customers.push(c);
+    // 装修加成：顾客更有耐心（等待时间更长）
+    c.setPatience(1 + skinById(this.data.activeSkinId).bonus.wait * 0.1);
+      // 顾客坐桌后：插到桌子节点之下，桌沿遮挡其下半身，形成前后纵深
+      c.node.setSiblingIndex(table.node.getSiblingIndex());
+      this.customers.push(c);
+    } catch (e) {
+      console.error('[spawn] 顾客生成失败', e);
+      return;
+    }
     this.refreshHud();
   }
 
   private updateCustomers(dt: number): void {
-    for (const c of this.customers) c.update(dt);
+    // 先跳过已离场的再更新，防止销毁节点引发的异常中断后续顾客
+    for (const c of this.customers) {
+      if (!c.isGone && c.node.isValid) c.update(dt);
+    }
     this.customers = this.customers.filter(c => !c.isGone);
     this.refreshHud();
   }
@@ -301,7 +352,8 @@ export class Main extends Component {
   private onServed(c: CustomerView, _dish: Dish): void {
     this.combo++;
     const mult = this.comboMultiplier();
-    const pay = Math.round(c.paid * mult);
+    const bonus = skinById(this.data.activeSkinId).bonus;
+    const pay = Math.round(c.paid * mult * (1 + bonus.coin * 0.1));
     this.data.earn(pay);
     this.data.servedTotal++;
     if (c.satisfaction >= 70) this.data.happyTotal++;
@@ -346,7 +398,13 @@ export class Main extends Component {
       this.hud.setCombo(0, 1);
     }
     c.markGone();
-    this.refreshAll();
+    // 离场只刷新菜单可点性和 HUD；重建桌子会打断在场顾客（对已销毁节点操作会抛错）
+    this.menu.rebuild(
+      this.data.availableDishes,
+      DISHES.filter(d => !this.data.dishUnlocked(d.id)),
+      this.data.coins,
+    );
+    this.refreshHud();
   }
 
   private refreshOrderBoard(): void {
@@ -404,7 +462,7 @@ export class Main extends Component {
     const hasBg = ArtService.hasArt('bg');
     const alpha = hasBg ? 40 : 255;
     const bg = new Color(skin.bg.r, skin.bg.g, skin.bg.b, alpha);
-    tint = makeRect('skin-tint', this.node, 900, 600, 0, 0, bg);
+    tint = makeRect('skin-tint', this.node, 960, 640, 0, 0, bg);
     tint.setSiblingIndex(2);
     for (const d of this.decorNodes) d.destroy();
     this.decorNodes = [];

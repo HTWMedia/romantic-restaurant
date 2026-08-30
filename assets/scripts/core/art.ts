@@ -41,6 +41,16 @@ export const ART_MANIFEST: ArtEntry[] = [
   { key: 'dish-steak',      category: 'dish',      w: 96,  h: 96 },
   { key: 'dish-dessert',    category: 'dish',      w: 96,  h: 96 },
 
+  // 合成链中间项（tools/make_merge_art.py 生成的程序占位图，可按 docs/ai-art-prompts.md 重出）
+  { key: 'ing-veg',         category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-salad',       category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-meat',        category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-stew',        category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-dough',       category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-cake',        category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-cheese',      category: 'dish',      w: 72,  h: 72 },
+  { key: 'ing-pasta-dough', category: 'dish',      w: 72,  h: 72 },
+
   // P1 小图标（仅列实际有消费点的）
   { key: 'icon-coin',       category: 'icon',      w: 32,  h: 32 },
   { key: 'icon-energy',     category: 'icon',      w: 32,  h: 32 },
