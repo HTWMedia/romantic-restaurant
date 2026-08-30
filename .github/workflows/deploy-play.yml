@@ -1,0 +1,75 @@
+name: Deploy Play (构建并发布在线试玩)
+
+# 手动触发，或当游戏代码变化时自动触发。
+# 首次使用前需配置一次仓库变量：
+#   Settings → Secrets and variables → Actions → Variables → New repository variable
+#   名称: COCOS_CREATOR_ZIP_URL
+#   值: Cocos Creator 3.8.8 Windows 版编辑器的 zip 直链
+#      （从 Cocos Dashboard 的下载详情页复制，或本地已装编辑器的 zip 包上传到任意可直链下载处）
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/**'
+      - '.github/workflows/deploy-play.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载并解压 Cocos Creator
+        shell: pwsh
+        run: |
+          $url = "${{ vars.COCOS_CREATOR_ZIP_URL }}"
+          if (-not $url) { throw "未配置仓库变量 COCOS_CREATOR_ZIP_URL（编辑器 zip 直链）" }
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\cocos.zip"
+          Expand-Archive "$env:RUNNER_TEMP\cocos.zip" -DestinationPath "$env:RUNNER_TEMP\cocos"
+
+      - name: 定位 CocosCreator.exe
+        id: locate
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "$env:RUNNER_TEMP\cocos" -Recurse -Filter CocosCreator.exe |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) { throw "解压后未找到 CocosCreator.exe" }
+          "exe=$exe" >> $env:GITHUB_OUTPUT
+
+      - name: 构建 Web 版
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "${{ steps.locate.outputs.exe }}" `
+            -ArgumentList '--project', $env:GITHUB_WORKSPACE, '--build', 'platform=web-desktop;debug=true' -PassThru
+          # CLI 进程在构建完成后可能不退出：轮询产物稳定后主动结束
+          $out = Join-Path $env:GITHUB_WORKSPACE 'build\web-desktop'
+          $last = -1; $stable = 0
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 10
+            if (-not (Test-Path "$out\index.html")) { continue }
+            $size = (Get-ChildItem $out -Recurse | Measure-Object Length -Sum).Sum
+            if ($size -eq $last) { $stable++ } else { $stable = 0; $last = $size }
+            if ($stable -ge 2) { break }
+          }
+          if (-not (Test-Path "$out\index.html")) { throw "构建失败：未生成 index.html" }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+
+      - name: 发布到 docs/play 并推送
+        shell: pwsh
+        run: |
+          Remove-Item docs\play -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory docs\play -Force | Out-Null
+          Copy-Item build\web-desktop\* docs\play\ -Recurse -Force
+          New-Item -ItemType File docs\play\.nojekyll | Out-Null
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/play
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "ci: 更新在线试玩构建 [skip ci]"
+            git push
+          }

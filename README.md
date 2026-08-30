@@ -35,6 +35,13 @@
 2. 打开 `assets/scenes/main.scene`，点击预览即可；
 3. 运行测试：`npm install && npm test`。
 
+## 📦 更新在线试玩
+
+两种方式任选：
+
+- **本地一键发布**：`powershell -File tools/release-play.ps1`（构建 → 拷贝 → 推送一条龙，需本机装有 Cocos Creator）；
+- **CI 自动构建**：在 GitHub 上手动触发 `Deploy Play` workflow（首次需在仓库 Variables 配置 `COCOS_CREATOR_ZIP_URL` 编辑器直链，见 workflow 文件注释）。修改 `assets/` 后推送到 main 也会自动触发。
+
 ## 📁 目录结构
 
 ```
