@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createAdStrategy, createKVStore, currentPlatform, SimulatedAdStrategy,
+  supportsSpeechRecognition, supportsSpeechSynthesis,
 } from '../../assets/scripts/core/platform';
 import { STORAGE_KEY } from '../../assets/scripts/core/storage';
 
@@ -22,5 +23,11 @@ describe('平台适配层', () => {
     let rewarded = false;
     s.play(15, r => { rewarded = r; });
     expect(rewarded).toBe(true);
+  });
+
+  it('语音能力探测：无对应环境 API 时返回 false', () => {
+    // vitest/node 默认无 SpeechRecognition / speechSynthesis
+    expect(supportsSpeechRecognition()).toBe(false);
+    expect(supportsSpeechSynthesis()).toBe(false);
   });
 });

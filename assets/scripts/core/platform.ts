@@ -72,3 +72,14 @@ export function createAdStrategy(): AdStrategy {
   }
   return adStrategy;
 }
+
+export function supportsSpeechRecognition(): boolean {
+  const w = globalThis as any;
+  return typeof (w.SpeechRecognition ?? w.webkitSpeechRecognition) === 'function';
+}
+
+export function supportsSpeechSynthesis(): boolean {
+  const w = globalThis as any;
+  return typeof w.speechSynthesis === 'object' && w.speechSynthesis !== null &&
+    typeof w.speechSynthesis.speak === 'function';
+}
