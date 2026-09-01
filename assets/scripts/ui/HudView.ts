@@ -22,7 +22,7 @@ export class HudView {
   private energyHasIcon = false;
   private custHasIcon = false;
 
-  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void) {
+  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void, chatCb: () => void) {
     ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
     // —— 左组：金币 / 体力 / 在店 / 合成台 ——
@@ -50,7 +50,8 @@ export class HudView {
     this.tableLevelLabel = this.tag(parent, '桌 L1', 100);
     this.kitchenLevelLabel = this.tag(parent, '厨 L1', 184);
     this.chapterBtn = pillButton('chapter-btn', parent, 126, 34, 295, 293, COLOR.accent, '第1章', chapterCb);
-    pillButton('upgrade-btn', parent, 80, 34, 410, 293, COLOR.primary, '升级', upgradeCb);
+    pillButton('chat-btn', parent, 70, 34, 340, 293, COLOR.primary, '💬 聊天', chatCb);
+    pillButton('upgrade-btn', parent, 80, 34, 388, 293, COLOR.primary, '升级', upgradeCb);
   }
 
   /** 图标 + 数字的药丸：图标固定在左侧，文字在剩余空间居中，互不重叠 */

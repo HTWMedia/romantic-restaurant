@@ -5,6 +5,7 @@ import { createAdStrategy, createKVStore } from '../core/platform';
 import { dishById, DISHES } from '../core/dishes';
 
 const AD_SEC = 15; // 模拟广告时长（秒）
+const CHAT_BASE = 'https://twmedia.dpdns.org';
 import { CustomerState, Dish } from '../core/types';
 import {
   cookTimeAtLevel, tableCountAtLevel, tableUpgradeCost, kitchenUpgradeCost, kitchenSlotCount,
@@ -21,6 +22,8 @@ import { ChapterView } from './ChapterView';
 import { AdView } from './AdView';
 import { SkinView } from './SkinView';
 import { CHAPTERS, DISH_UNLOCK_SCRIPT } from '../core/chapters';
+import { ChatService } from '../core/chat';
+import { ChatView } from './ChatView';
 import { skinById } from '../core/skins';
 import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
@@ -41,6 +44,7 @@ export class Main extends Component {
   private kitchen!: Kitchen;
   private upgrade!: UpgradeView;
   private merge!: MergeView;
+  private chatView!: ChatView;
 
   private tables: { node: Node; x: number }[] = [];
   private customers: CustomerView[] = [];
@@ -92,6 +96,7 @@ export class Main extends Component {
       () => this.openChapters(),
       () => this.onAdButton(),
       () => this.merge.open(),
+      () => this.chatView.open(),
     );
     this.hud.setCombo(0, 1);
 
@@ -127,6 +132,9 @@ export class Main extends Component {
     );
     this.applySkin();
 
+    const chatService = new ChatService({ baseUrl: CHAT_BASE });
+    this.chatView = new ChatView(this.node, chatService, typeof fetch === 'function');
+
     this.merge = new MergeView(this.node, this.data, () => {
       this.saveGame();
       this.refreshHud();
@@ -150,6 +158,7 @@ export class Main extends Component {
 
   update(dt: number): void {
     if (!this.ready) return;
+    this.chatView.update(dt);
     this.updateSpawn(dt);
     this.kitchen.update(dt);
     this.serveIfReady();
