@@ -19,6 +19,9 @@ describe('StorageService', () => {
     const data: SaveData = {
       version: 1, coins: 120, unlockedDishIds: ['fries'],
       tableLevel: 2, kitchenLevel: 1, totalRevenue: 500,
+      chapterIndex: 0, servedTotal: 0, happyTotal: 0,
+      introPlayed: false, energy: 100,
+      ownedSkinIds: ['default'], activeSkinId: 'default',
     };
     svc.save(data);
     expect(svc.load()).toEqual(data);

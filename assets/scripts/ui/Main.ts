@@ -222,7 +222,7 @@ export class Main extends Component {
     const strategy = createAdStrategy();
     if (strategy.native) {
       this.adBusy = true;
-      strategy.play(rewarded => {
+      strategy.play(AD_SEC, rewarded => {
         this.adBusy = false;
         if (rewarded) reward();
       });

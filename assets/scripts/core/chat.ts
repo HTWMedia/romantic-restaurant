@@ -21,7 +21,7 @@ export interface ChatOptions {
   maxHistory?: number;
 }
 
-const DEFAULT_TIMEOUT = 60_000;
+const DEFAULT_TIMEOUT = 20_000;
 const DEFAULT_MAX_HISTORY = 6;
 
 function fallbackText(): string {
@@ -79,8 +79,11 @@ export class ChatService {
         this.history.push({ role: 'assistant', content: result });
         return { text: result, ok: true };
       }
+      // 失败时弹出刚入历史的用户消息，避免历史里出现没有回复的断裂轮次
+      if (trimmed) this.history.pop();
       return { text: fallbackText(), ok: false };
     } catch {
+      if (trimmed) this.history.pop();
       return { text: fallbackText(), ok: false };
     } finally {
       clearTimeout(timer);

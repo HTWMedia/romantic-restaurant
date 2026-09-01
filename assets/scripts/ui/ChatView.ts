@@ -1,8 +1,8 @@
-import { Button, Color, EditBox, Graphics, Label, Node, Vec3, tween } from 'cc';
+import { Button, Color, EditBox, Graphics, Label, Mask, Node, Vec3, tween } from 'cc';
 import { COLOR, makeLabel, makeNode, makeRect, pillButton, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
 import { supportsSpeechRecognition, supportsSpeechSynthesis } from '../core/platform';
-import { ChatService, ChatReply } from '../core/chat';
+import { ChatService, ChatReply, ChatMsg } from '../core/chat';
 
 const WELCOME_LINES = [
   '嗨，我是小柒！欢迎来我的小店里坐坐～',
@@ -31,8 +31,11 @@ export class ChatView {
   private listening = false;
   private talking = false;
   private pulsing = false;
+  private pending = false;
   private hasFetch: boolean;
   private curKey = '';
+  // 欢迎语只做本地展示，不进 service.history，避免伪历史发给 LLM
+  private readonly welcomeMsgs: ChatMsg[] = WELCOME_LINES.map(w => ({ role: 'assistant' as const, content: w }));
 
   constructor(private parent: Node, private service: ChatService, hasFetch: boolean) {
     this.hasFetch = hasFetch;
@@ -44,6 +47,7 @@ export class ChatView {
     this.panel.active = false;
 
     this.buildHeader();
+    roundRect('chat-msgs-bg', this.panel, 640, MSG_WINDOW_H, 0, 30, 12, COLOR.panel, COLOR.border);
     this.msgList = makeNode('chat-msgs', this.panel, 640, MSG_WINDOW_H, 0, 30);
     this.clipMessages();
     this.buildInputBar();
@@ -54,7 +58,7 @@ export class ChatView {
 
   private buildHeader(): void {
     makeLabel('chat-title', this.panel, '🔴 LIVE · 小柒', 20, 0, 232, COLOR.text);
-    const topic = roundRect('chat-topics', this.panel, 300, 30, 0, 196, COLOR.panel, COLOR.border);
+    const topic = roundRect('chat-topics', this.panel, 300, 30, 0, 196, 15, COLOR.panel, COLOR.border);
     makeLabel('chat-topic-text', topic, '生活 · 做饭 · 育儿', 13, 0, 0, COLOR.subtext);
 
     this.avatar = makeNode('chat-avatar', this.panel, 120, 120, -270, 150);
@@ -66,46 +70,44 @@ export class ChatView {
   }
 
   private buildInputBar(): void {
-    const bar = roundRect('chat-input-bar', this.panel, 640, 54, 0, -216, COLOR.panel, COLOR.border);
+    const bar = roundRect('chat-input-bar', this.panel, 640, 54, 0, -216, 16, COLOR.panel, COLOR.border);
     const box = makeNode('chat-edit', bar, 440, 38, -60, 0);
     this.input = box.addComponent(EditBox);
     this.input.placeholder = '和小柒说点什么…';
-    this.input.fontSize = 16;
     this.input.maxLength = 200;
     this.input.string = '';
 
     if (supportsSpeechRecognition() && this.hasFetch) {
       this.micBtn = pillButton('chat-mic', bar, 46, 38, 220, 0, COLOR.accent, '🎙', () => this.toggleMic());
     }
-    this.sendBtn = roundRect('chat-send', bar, 64, 38, 285, 0, COLOR.primary, COLOR.white);
+    this.sendBtn = roundRect('chat-send', bar, 64, 38, 285, 0, 19, COLOR.primary);
     this.sendBtn.addComponent(Button);
     makeLabel('chat-send-text', this.sendBtn, '发送', 16, 0, 0, COLOR.white);
     this.sendBtn.on(Button.EventType.CLICK, () => this.onSend());
   }
 
   private clipMessages(): void {
-    const mask = this.msgList.addComponent(Graphics);
-    mask.fillColor = COLOR.panel;
-    mask.rect(-320, -MSG_WINDOW_H / 2, 640, MSG_WINDOW_H);
-    mask.fill();
-    this.msgList.addComponent(Graphics).fillColor = COLOR.panel;
+    // GRAPHICS_STENCIL 遮罩裁剪子节点（气泡）；窗口底色由 chat-msgs-bg 提供
+    const g = this.msgList.addComponent(Graphics);
+    g.roundRect(-320, -MSG_WINDOW_H / 2, 640, MSG_WINDOW_H, 12);
+    g.fill();
+    const mask = this.msgList.addComponent(Mask);
+    mask.type = Mask.Type.GRAPHICS_STENCIL;
   }
 
   private pushWelcome(): void {
-    for (const w of WELCOME_LINES) {
-      this.service.history.push({ role: 'assistant', content: w });
-    }
     this.mood = 'happy';
   }
 
   private onSend(): void {
     const text = this.input.string.trim();
-    if (!text) return;
+    if (!text || this.pending) return;
     this.input.string = '';
     void this.dispatch(text);
   }
 
   private toggleMic(): void {
+    if (this.pending) return;
     if (this.listening) { this.stopRec(); return; }
     const w = globalThis as any;
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
@@ -145,9 +147,12 @@ export class ChatView {
       this.rebuildMessages();
       return;
     }
+    this.pending = true;
     this.setSendEnabled(false);
     this.mood = 'idle';
+    this.rebuildMessages();
     const reply: ChatReply = await this.service.send(text);
+    this.pending = false;
     this.setSendEnabled(true);
     this.applyMoodByReply(reply);
     this.rebuildMessages();
@@ -191,7 +196,7 @@ export class ChatView {
 
   private rebuildMessages(): void {
     this.msgList.removeAllChildren();
-    const msgs = this.service.history.slice(-MSG_MAX);
+    const msgs = [...this.welcomeMsgs, ...this.service.history].slice(-MSG_MAX);
     const chunkSize = 22;
     let y = MSG_WINDOW_H / 2 - 20;
     msgs.forEach((m, i) => {
@@ -209,6 +214,10 @@ export class ChatView {
       if (lines > 1) label.string = wrapped.join('\n');
       y -= h + 10;
     });
+    if (this.pending) {
+      const bubble = roundRect('m-typing', this.msgList, 150, 32, -210, y, 12, COLOR.panel, COLOR.border);
+      makeLabel('mt-typing', bubble, '小柒正在输入…', 14, 0, 0, COLOR.subtext);
+    }
   }
 
   private applyAvatar(mood: Mood): void {

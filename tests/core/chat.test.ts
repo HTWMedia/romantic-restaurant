@@ -48,17 +48,19 @@ describe('ChatService', () => {
   });
 
   it('历史裁剪：超过 maxHistory 轮只保留最近', async () => {
+    let prompt = '';
+    const svc = new ChatService({
+      baseUrl: 'https://example.com',
+      maxHistory: 2,
+      fetchImpl: (async (_u: unknown, init?: RequestInit) => {
+        prompt = JSON.parse(String(init?.body)).prompt;
+        return { ok: true, status: 200, json: async () => ({ result: 'ok' }) } as Response;
+      }) as typeof fetch,
+    });
     const push = (role: 'user' | 'assistant') => svc.history.push({ role, content: 'x' });
-    const svc = new ChatService({ baseUrl: 'https://example.com', maxHistory: 2 });
     for (let i = 0; i < 6; i++) { push('user'); push('assistant'); }
     const before = svc.history.length;
-    let prompt = '';
-    svc.fetchImpl === undefined; // noop
     // 再次 send 触发裁剪
-    svc.fetchImpl = (async (_u: unknown, init?: RequestInit) => {
-      prompt = JSON.parse(String(init?.body)).prompt;
-      return { ok: true, status: 200, json: async () => ({ result: 'ok' }) } as Response;
-    }) as typeof fetch;
     await svc.send('触发裁剪');
     // maxHistory=2 轮 → 最多保留 2*2 + 新 user + assistant = 6 条
     expect(before).toBeGreaterThanOrEqual(6);
@@ -75,6 +77,8 @@ describe('ChatService', () => {
     const reply = await svc.send('在吗');
     expect(reply.ok).toBe(false);
     expect(reply.text.length).toBeGreaterThan(0);
+    // 失败不应留下没有回复的用户消息
+    expect(svc.history.some(m => m.role === 'user' && m.content === '在吗')).toBe(false);
   });
 
   it('后端返回空 result 时降级', async () => {
@@ -84,6 +88,7 @@ describe('ChatService', () => {
     });
     const reply = await svc.send('在吗');
     expect(reply.ok).toBe(false);
+    expect(svc.history.some(m => m.role === 'user' && m.content === '在吗')).toBe(false);
   });
 
   it('clear 清空历史', () => {
