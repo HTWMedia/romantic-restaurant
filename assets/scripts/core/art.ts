@@ -24,6 +24,9 @@ export const ART_MANIFEST: ArtEntry[] = [
   { key: 'char-tangtang',   category: 'character', w: 150, h: 150 },
   { key: 'char-laozhou',    category: 'character', w: 150, h: 150 },
   { key: 'char-ashen',      category: 'character', w: 150, h: 150 },
+  { key: 'char-xiaoqi-idle',   category: 'character', w: 150, h: 150 },
+  { key: 'char-xiaoqi-say',    category: 'character', w: 150, h: 150 },
+  { key: 'char-xiaoqi-happy',  category: 'character', w: 150, h: 150 },
   { key: 'icon-narrator',   category: 'character', w: 150, h: 150 },
 
   // 5 张面板（9-slice）
