@@ -20,7 +20,6 @@ export class ChatView {
   private panel!: Node;
   private avatar!: Node;
   private avatarFallback!: Label;
-  private moods: Mood[] = [];
   private mood = 'idle' as Mood;
   private floatT = 0;
   private sayT = 0;
@@ -140,6 +139,7 @@ export class ChatView {
 
   private async dispatch(text: string): Promise<void> {
     if (!this.hasFetch) {
+      this.service.history.push({ role: 'user', content: text });
       this.service.history.push({ role: 'assistant', content: '当前环境暂不支持联网聊天，我先陪你说句话吧～' });
       this.rebuildMessages();
       return;
@@ -202,7 +202,7 @@ export class ChatView {
       );
       const label = makeLabel(`mt-${i}`, bubble, m.content, 14, 0, 0,
         isUser ? COLOR.white : COLOR.text);
-      label.overflow = 'NONE';
+      label.overflow = Label.Overflow.NONE;
       const chunkSize = 22;
       if (m.content.length > chunkSize) {
         const wrapped = m.content.match(new RegExp(`.{1,${chunkSize}}`, 'g'))?.join('\n') ?? m.content;

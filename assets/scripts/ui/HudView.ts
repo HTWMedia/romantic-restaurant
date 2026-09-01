@@ -49,9 +49,9 @@ export class HudView {
     // —— 右组：桌等级 / 厨等级 / 章节 / 升级 ——
     this.tableLevelLabel = this.tag(parent, '桌 L1', 100);
     this.kitchenLevelLabel = this.tag(parent, '厨 L1', 184);
-    this.chapterBtn = pillButton('chapter-btn', parent, 126, 34, 295, 293, COLOR.accent, '第1章', chapterCb);
-    pillButton('chat-btn', parent, 70, 34, 340, 293, COLOR.primary, '💬 聊天', chatCb);
-    pillButton('upgrade-btn', parent, 80, 34, 388, 293, COLOR.primary, '升级', upgradeCb);
+    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 288, 293, COLOR.accent, '第1章', chapterCb);
+    pillButton('chat-btn', parent, 60, 34, 372, 293, COLOR.primary, '💬 聊天', chatCb);
+    pillButton('upgrade-btn', parent, 56, 34, 432, 293, COLOR.primary, '升级', upgradeCb);
   }
 
   /** 图标 + 数字的药丸：图标固定在左侧，文字在剩余空间居中，互不重叠 */
