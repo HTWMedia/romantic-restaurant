@@ -6,6 +6,28 @@
 
 ## 出图流程（从生成到入库 6 步）
 
+0. **批量出图脚本（推荐，历史图片均由此产出）**：剪映生图链路（生图 + 自动抠图），
+   脚本在 **`D:\ai-media-agent\backend\tools\gen_restaurant_art.py`**
+   （临时工具，不在本仓库内；生图/抠图 HTTP 封装在同仓库
+   `backend/core/jianying_gen.py`）。脚本内 `ITEMS` 已含本项目全部 key 及
+   完整中文提示词（含小柒表情帧 `char-xiaoqi-idle/say/happy`），生成后自动
+   裁剪到目标尺寸并直接写入本项目 `assets/resources/art/`。
+   用法（Git Bash，从 `D:\ai-media-agent` 运行，需先清代理）：
+
+   ```bash
+   cd /d/ai-media-agent
+   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+   C:/Python314/python.exe backend/tools/gen_restaurant_art.py --list p0                  # P0 全部
+   C:/Python314/python.exe backend/tools/gen_restaurant_art.py --list full               # 全量
+   C:/Python314/python.exe backend/tools/gen_restaurant_art.py --keys char-xiaoqi-happy  # 单独重出某张
+   C:/Python314/python.exe backend/tools/gen_restaurant_art.py --keys xxx --skip-existing
+   ```
+
+   注意：剪映接口不支持固定 seed，同一 key 重出结果会有差异；人物类 key
+   （char-xiaoqi 及三张表情帧）共用同一形象描述词，单帧不满意可单独重出覆盖；
+   需要剪映登录 cookie（脚本经 `core/jianying_http.load_cookie` 读取，此前跑通即已配置）。
+   出完记得对 >50KB 的图执行第 5 步压缩。
+
 1. **生成**：任选支持透明背景的 AI 出图工具（即梦、Recraft、Firefly 等；
    不支持透明的先出纯白/纯灰底，再用 remove.bg / Photoshop「删除背景」抠成透明）。
    提示词 = 本文各条目提示词，前拼「统一风格前缀」；尺寸按下方规格表（出图尺寸 = 显示尺寸 ×2）。
