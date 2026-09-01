@@ -30,6 +30,7 @@ export class ChatView {
   private rec: any = null;
   private listening = false;
   private talking = false;
+  private pulsing = false;
   private hasFetch: boolean;
   private curKey = '';
 
@@ -132,7 +133,7 @@ export class ChatView {
 
   private stopRec(): void {
     this.listening = false;
-    try { this.rec?.stop(); } catch { /* ignore */ }
+    try { this.rec?.stop(); } catch { }
     this.rec = null;
     if (this.micBtn) this.micBtn.getComponentInChildren(Label)!.string = '🎙';
   }
@@ -191,27 +192,22 @@ export class ChatView {
   private rebuildMessages(): void {
     this.msgList.removeAllChildren();
     const msgs = this.service.history.slice(-MSG_MAX);
-    const startY = Math.min(MSG_WINDOW_H / 2 - 24, 100);
+    const chunkSize = 22;
+    let y = MSG_WINDOW_H / 2 - 20;
     msgs.forEach((m, i) => {
       const isUser = m.role === 'user';
+      const wrapped = m.content.match(new RegExp(`.{1,${chunkSize}}`, 'g')) ?? [m.content];
+      const lines = wrapped.length;
+      const h = 24 + lines * 18;
       const width = Math.min(360, 24 + m.content.length * 17);
-      const bubble = roundRect(
-        `m-${i}`, this.msgList, width, 34, isUser ? 210 : -210, startY - i * 46, 12,
-        isUser ? COLOR.primary : COLOR.panel,
-        isUser ? undefined : COLOR.border,
-      );
+      const x = isUser ? 210 : -210;
+      const bubble = roundRect(`m-${i}`, this.msgList, width, h, x, y, 12,
+        isUser ? COLOR.primary : COLOR.panel, isUser ? undefined : COLOR.border);
       const label = makeLabel(`mt-${i}`, bubble, m.content, 14, 0, 0,
         isUser ? COLOR.white : COLOR.text);
       label.overflow = Label.Overflow.NONE;
-      const chunkSize = 22;
-      if (m.content.length > chunkSize) {
-        const wrapped = m.content.match(new RegExp(`.{1,${chunkSize}}`, 'g'))?.join('\n') ?? m.content;
-        label.string = wrapped;
-        bubble.getComponent(Graphics)!.clear();
-        roundRect(`mb-${i}`, this.msgList, width, 30 + Math.ceil(wrapped.length / chunkSize) * 18,
-          isUser ? 210 : -210, startY - i * (34 + Math.ceil(wrapped.length / chunkSize) * 22) - 6, 12,
-          isUser ? COLOR.primary : COLOR.panel, isUser ? undefined : COLOR.border);
-      }
+      if (lines > 1) label.string = wrapped.join('\n');
+      y -= h + 10;
     });
   }
 
@@ -241,10 +237,12 @@ export class ChatView {
     this.avatar.setPosition(-270, 150 + dy, 0);
     if (this.sayT > 0) this.sayT -= dt;
     this.applyAvatar(this.mood);
-    if (this.mood === 'happy') {
+    if (this.mood === 'happy' && !this.pulsing) {
+      this.pulsing = true;
       tween(this.avatar)
         .to(0.2, { scale: new Vec3(1.08, 1.08, 1) })
         .to(0.2, { scale: new Vec3(1, 1, 1) })
+        .call(() => { this.pulsing = false; })
         .start();
     }
   }
@@ -262,6 +260,7 @@ export class ChatView {
     const synth = (globalThis as any).speechSynthesis;
     if (synth && typeof synth.cancel === 'function') synth.cancel();
     this.talking = false;
+    this.pulsing = false;
     this.overlay.active = false;
     this.panel.active = false;
   }

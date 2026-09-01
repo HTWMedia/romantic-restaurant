@@ -74,7 +74,7 @@ export class ChatService {
       try {
         const json = (await res.json()) as { result?: string };
         result = (json.result ?? '').trim();
-      } catch { /* 解析失败按空处理 */ }
+      } catch { }
       if (result) {
         this.history.push({ role: 'assistant', content: result });
         return { text: result, ok: true };
