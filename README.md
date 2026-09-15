@@ -5,7 +5,6 @@
 ![Code](https://img.shields.io/badge/code-MIT-yellow)
 ![Assets](https://img.shields.io/badge/art-CC%20BY%204.0-orange)
 
-> 🤖 **本项目由 GLM-5.3-Flash（牛来）模型在一个周末内开发完成**——包括全部代码、AI 水彩美术、玩法系统与五章剧情；人类只负责提需求、试玩和验收。
 > 复刻对象是最近爆火的柠檬微趣《浪漫餐厅》（Gossip Harbor）。
 
 一款水彩画风的餐厅经营 + 合成研发小游戏，**Cocos Creator 3.8 + TypeScript** 开发。
@@ -81,13 +80,6 @@ docs/               # 文档与 Web 构建产物（GitHub Pages）
 - 代码：[MIT](LICENSE-MIT)
 - 美术资源：[CC BY 4.0](LICENSE-ASSETS)（AI 生成，署名即可自由使用与商用）
 
-## 🤖 关于"一个周末"
-
-- **AI（牛来 / GLM-5.3-Flash）**：全部游戏代码、UI 布局、数值设计、水彩美术的生成与修复、剧情文案、CI/发布脚本、本 README；
-- **人类**：一句话需求（"做个仿《浪漫餐厅》的"）、试玩验收、以及偶尔"这个不好看/不合理"的迭代反馈；
-- **过程**：周五晚开工 → 周日上线，中途踩坑包括 AI 出图的假透明背景、Cocos 9-slice 坑、热更新缓存导致的"半新半旧"构建等，修复脚本都留在 [tools/](tools/)；
-- **免责声明**：玩法致敬《Gossip Harbor》，本项目与其官方无任何关联；代码与素材请遵守文末协议。
-
 ## 🙏 致谢
 
-玩法灵感来自 [Gossip Harbor（浪漫餐厅）](https://www.taptap.cn/app/472491)；美术资源由 AI 水彩风格生成；由 [GLM-5.3-Flash](https://open.bigmodel.cn/)（牛来）驱动开发。
+玩法灵感来自 [Gossip Harbor（浪漫餐厅）](https://www.taptap.cn/app/472491)；美术资源由 AI 水彩风格生成。
