@@ -19,7 +19,12 @@ describe('GameData', () => {
     s.coins = 999; s.unlockedDishIds = ['fries', 'burger', 'pizza'];
     const d = new GameData(s);
     expect(d.coins).toBe(999);
-    expect(d.toSave()).toEqual(s);
+    // toSave 会补充新字段，所以对比关键字段而非全等
+    const saved = d.toSave();
+    expect(saved.coins).toBe(s.coins);
+    expect(saved.unlockedDishIds).toEqual(s.unlockedDishIds);
+    expect(saved.bestCombo).toBe(0);
+    expect(saved.questBoardJson).toBe('');
   });
 
   it('解锁菜谱：金币不足失败，足够成功并扣款', () => {

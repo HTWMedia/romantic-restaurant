@@ -4,6 +4,7 @@ import {
   DEFAULT_MAX_WAIT, MAX_SATISFACTION, paidAmount, satisfactionAfterWaiting,
 } from '../core/satisfaction';
 import { COLOR, lerpColor, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
+import { VipType } from '../core/specialCustomer';
 
 const EAT_SEC = 8; // 用餐时长（秒）：吃完即离场
 import { ArtService } from './ArtView';
@@ -23,6 +24,8 @@ export class CustomerView {
   private plateNode: Node | null = null;
   private plateShadow: Node | null = null;
   private leaving = false;
+  vipType: VipType | null = null;
+  private vipBadge: Node | null = null;
 
   constructor(
     parent: Node, x: number, y: number,
@@ -98,7 +101,10 @@ export class CustomerView {
   get satisfaction(): number {
     return Math.max(0, Math.round(MAX_SATISFACTION - (MAX_SATISFACTION / this.maxWait) * this.waitTimer));
   }
-  get paid(): number { return paidAmount(this.price, this.satisfaction); }
+  get paid(): number {
+    const mult = this.vipType ? this.vipType.payMult : 1;
+    return Math.round(paidAmount(this.price, this.satisfaction) * mult);
+  }
   get wantsLeavesUpset(): boolean { return this.satisfaction <= 0 && this._state === CustomerState.ORDERING; }
   get isGone(): boolean { return this._state === CustomerState.GONE; }
 
@@ -141,6 +147,26 @@ export class CustomerView {
   /** 装修加成：调整顾客耐心（等待时长倍率） */
   setPatience(mult: number): void {
     this.maxWait = DEFAULT_MAX_WAIT * mult;
+  }
+
+  /** VIP 顾客设置：调整耐心倍率 + 头顶金光角标 */
+  setVip(vip: VipType): void {
+    this.vipType = vip;
+    this.maxWait = DEFAULT_MAX_WAIT * vip.patienceMult;
+    // 金色光圈角标
+    this.vipBadge = makeNode('vip-badge', this.node, 40, 40, -48, 100);
+    const ring = roundRect('vip-ring', this.vipBadge, 28, 28, 0, 0, 14,
+      new Color(255, 201, 77, 80), new Color(255, 201, 77, 255));
+    ring;
+    const lbl = makeLabel('vip-tag', this.vipBadge, vip.glyph, 16, 0, 0, new Color(255, 140, 0, 255));
+    lbl.isBold = true;
+    // 脉动闪烁
+    tween(this.vipBadge)
+      .to(0.6, { scale: new Vec3(1.15, 1.15, 1) })
+      .to(0.6, { scale: new Vec3(1, 1, 1) })
+      .union()
+      .repeatForever()
+      .start();
   }
 
   /** 桌位重建（升级）后同步位置：顾客搬到新桌，已上的盘子/投影跟随 */
@@ -192,6 +218,10 @@ export class CustomerView {
       this.floatTween.stop();
       this.floatTween = null;
     }
+    if (this.vipBadge) {
+      this.vipBadge.destroy();
+      this.vipBadge = null;
+    }
     if (this.plateNode) {
       this.plateNode.destroy();
       this.plateNode = null;
@@ -203,16 +233,22 @@ export class CustomerView {
     this.node.destroy();
   }
 
-  /** 上菜收款时的飘字演出：上方弹出 +金额 */
+  /** 上菜收款时的飘字演出：上方弹出 +金额，VIP 额外金色弹跳 */
   showPay(amount: number): void {
-    const lab = makeLabel('pay', this.node, `+${amount}🪙`, 18, 0, 140, COLOR.accent);
+    const isVip = !!this.vipType;
+    const lab = makeLabel('pay', this.node,
+      isVip ? `✨+${amount}🪙✨` : `+${amount}🪙`, isVip ? 22 : 18,
+      0, 140, isVip ? new Color(255, 180, 0, 255) : COLOR.accent);
     lab.isBold = true;
     tween(lab.node)
       .to(0.7, { position: new Vec3(0, 200, 0) })
       .call(() => lab.node.destroy())
       .start();
+    // 弹跳缩放：VIP 更大
+    const peak = isVip ? 1.25 : 1.12;
     tween(this.node)
-      .to(0.1, { scale: new Vec3(1.12, 1.12, 1) })
+      .to(0.1, { scale: new Vec3(peak, peak, 1) })
+      .to(0.15, { scale: new Vec3(0.95, 0.95, 1) })
       .to(0.1, { scale: new Vec3(1, 1, 1) })
       .start();
   }

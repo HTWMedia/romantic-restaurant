@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MERGE_ITEMS, MERGE_BASE_IDS, mergeNext, mergeItemById } from '../../assets/scripts/core/merge';
+import { MERGE_ITEMS, MERGE_BASE_IDS, mergeNext, mergeItemById, mergeTimeFor, rushCost, isPending, isReady } from '../../assets/scripts/core/merge';
 
 describe('merge chain', () => {
   it('mergeNext 返回下一阶 id，终点为 null', () => {
@@ -35,5 +35,26 @@ describe('merge chain', () => {
     for (const it of MERGE_ITEMS) {
       expect(it.glyph || it.artKey).toBeTruthy();
     }
+  });
+  it('合成时间：基础→中间 5秒，中间→成品 15秒，终点 0', () => {
+    expect(mergeTimeFor('m-veg')).toBe(5);     // tier0 → tier1
+    expect(mergeTimeFor('m-salad')).toBe(15);   // tier1 → tier2
+    expect(mergeTimeFor('m-pizza')).toBe(0);    // 终点
+    expect(mergeTimeFor('m-meat')).toBe(5);
+    expect(mergeTimeFor('m-stew')).toBe(15);
+  });
+  it('rushCost：每秒 2 金币，最低 1', () => {
+    expect(rushCost(0)).toBe(1);
+    expect(rushCost(1)).toBe(2);
+    expect(rushCost(10)).toBe(20);
+    expect(rushCost(7.5)).toBe(15);
+  });
+  it('isPending / isReady 类型守卫', () => {
+    expect(isPending(null)).toBe(false);
+    expect(isPending('m-veg')).toBe(false);
+    expect(isPending({ resultId: 'm-salad', finishAt: 0 })).toBe(true);
+    expect(isReady(null)).toBe(false);
+    expect(isReady('m-veg')).toBe(true);
+    expect(isReady({ resultId: 'm-salad', finishAt: 0 })).toBe(false);
   });
 });

@@ -22,10 +22,10 @@ export class HudView {
   private energyHasIcon = false;
   private custHasIcon = false;
 
-  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void, chatCb: () => void) {
+  constructor(parent: Node, upgradeCb: () => void, chapterCb: () => void, adCb: () => void, mergeCb: () => void, chatCb: () => void, questCb?: () => void) {
     ArtService.panelWithArt('hud-bg', parent, 'panel-hud', 920, 58, 0, 293);
 
-    // —— 左组：金币 / 体力 / 在店 / 合成台 ——
+    // —— 左组：金币 / 体力 / 在店 / 合成台 / 任务 ——
     roundRect('coin-badge', parent, 110, 38, -395, 293, 19, new Color(255, 201, 77, 60));
     const coinIcon = ArtService.attachIconSprite(parent, 'icon-coin', -432, 293, 26);
     if (!coinIcon) makeLabel('coin-icon', parent, '🪙', 20, -432, 293, COLOR.accent);
@@ -41,16 +41,19 @@ export class HudView {
     this.custHasIcon = cust.hasIcon;
     this.custLabel = cust.label;
 
-    pillButton('merge-btn', parent, 88, 34, -74, 293, COLOR.accent, '合成台', mergeCb);
-    this.comboLabel = makeLabel('combo', parent, '', 15, 17, 293, COLOR.accent);
+    pillButton('merge-btn', parent, 80, 34, -80, 293, COLOR.accent, '合成台', mergeCb);
+    if (questCb) {
+      pillButton('quest-btn', parent, 60, 34, 8, 293, COLOR.green, '📋', questCb);
+    }
+    this.comboLabel = makeLabel('combo', parent, '', 15, 60, 293, COLOR.accent);
     this.comboLabel.isBold = true;
     this.comboLabel.node.active = false;
 
-    // —— 右组：桌等级 / 厨等级 / 章节 / 升级 ——
-    this.tableLevelLabel = this.tag(parent, '桌 L1', 100);
-    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 184);
-    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 288, 293, COLOR.accent, '第1章', chapterCb);
-    pillButton('chat-btn', parent, 60, 34, 372, 293, COLOR.primary, '💬 聊天', chatCb);
+    // —— 右组：桌等级 / 厨等级 / 章节 / 聊天 / 升级 ——
+    this.tableLevelLabel = this.tag(parent, '桌 L1', 120);
+    this.kitchenLevelLabel = this.tag(parent, '厨 L1', 200);
+    this.chapterBtn = pillButton('chapter-btn', parent, 100, 34, 296, 293, COLOR.accent, '第1章', chapterCb);
+    pillButton('chat-btn', parent, 56, 34, 372, 293, COLOR.primary, '💬', chatCb);
     pillButton('upgrade-btn', parent, 56, 34, 432, 293, COLOR.primary, '升级', upgradeCb);
   }
 

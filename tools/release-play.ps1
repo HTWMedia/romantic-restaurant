@@ -1,4 +1,4 @@
-# 一键发布在线试玩：Cocos 构建 Web 版 → 拷贝到 docs/play → 提交推送
+﻿# 一键发布在线试玩：Cocos 构建 Web 版 → 拷贝到 docs/play → 提交推送
 # 用法：在本机 PowerShell 运行  powershell -File tools/release-play.ps1 [-CommitMsg "文案"]
 # 注意：构建期间请先关闭 Cocos Creator 编辑器（避免项目占用）；CLI 进程构建完成后可能不自动退出，属正常现象。
 param(

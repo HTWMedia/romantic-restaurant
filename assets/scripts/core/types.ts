@@ -28,5 +28,9 @@ export interface SaveData {
   energy: number;         // 当前体力
   ownedSkinIds: string[]; // 已拥有的皮肤
   activeSkinId: string;   // 当前使用的皮肤
-  mergeGrid?: (string | null)[];   // 合成台各格物品 id，按格序
+  mergeGrid?: import('./merge').MergeSlot[];   // 合成台各格物品（id / 合成中对象 / null）
+  bestCombo?: number;           // 历史最高连击
+  totalServedAllTime?: number;  // 史上总招待（含读档前）
+  questBoardJson?: string;      // 任务面板 JSON
+  ownedDecorIds?: string[];     // 已拥有的装饰品 id
 }

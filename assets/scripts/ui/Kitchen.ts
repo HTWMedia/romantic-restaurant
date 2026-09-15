@@ -2,6 +2,7 @@ import { Color, Graphics, Label, Node, tween, Vec3 } from 'cc';
 import { Dish } from '../core/types';
 import { COLOR, makeLabel, makeNode, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
+import { ParticleFx } from './ParticleFx';
 interface Slot {
   dish: Dish | null;
   remain: number;
@@ -77,6 +78,9 @@ export class Kitchen {
           s.remain = 0;
           s.ready = true;
           this.onSlotReady?.(s.dish);
+          // 蒸汽特效
+          const pos = s.root.getPosition();
+          ParticleFx.steamPuff(pos.x, pos.y + 20);
         }
         this.render(s);
       } else {

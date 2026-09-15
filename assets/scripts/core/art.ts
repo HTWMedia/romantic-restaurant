@@ -81,6 +81,20 @@ export const ART_MANIFEST: ArtEntry[] = [
   { key: 'decor-festival-2',category: 'decor',     w: 88,  h: 88 },
   { key: 'decor-festival-3',category: 'decor',     w: 88,  h: 88 },
 
+  // P2 独立装饰品（单件购买，emoji 回退）
+  { key: 'decor-painting',  category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-clock',     category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-sign',      category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-vase',      category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-candle',    category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-cloth',     category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-plant',     category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-rug',       category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-umbrella',  category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-lamp',      category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-chime',     category: 'decor',     w: 88,  h: 88 },
+  { key: 'decor-ribbon',    category: 'decor',     w: 88,  h: 88 },
+
   // 皮肤列表小图标
   { key: 'skin-classic',    category: 'icon',      w: 40,  h: 40 },
   { key: 'skin-garden',     category: 'icon',      w: 40,  h: 40 },

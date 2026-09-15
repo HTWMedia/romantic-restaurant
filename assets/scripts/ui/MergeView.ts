@@ -1,6 +1,7 @@
 import { Button, Color, Label, Node, tween } from 'cc';
 import { GameData } from '../core/gameData';
-import { MERGE_BASE_IDS, mergeItemById, mergeNext } from '../core/merge';import { COLOR, makeLabel, makeNode, makeRect, pillButton, roundRect } from './Widgets';
+import { isPending, isReady, MERGE_BASE_IDS, MergeSlot, mergeItemById, mergeNext, mergeTimeFor, rushCost } from '../core/merge';
+import { COLOR, makeLabel, makeNode, makeRect, pillButton, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
 
 const COLS = 4;
@@ -16,23 +17,70 @@ const BASE_OFFERS: { id: string; cost: number }[] =
 export class MergeView {
   private root!: Node;
   private contents: Node[] = [];
-  private itemIds: (string | null)[] = [];
+  private slots: MergeSlot[] = [];
   private selected = -1;
   private chainStrip: Node | null = null;
   private genLabel!: Label;
   private genCdEnd = 0;
+  private tickTimer: any = null;
 
   constructor(
     private parent: Node, private data: GameData, private save: () => void,
     private onUnlock?: (dishId: string) => void,
   ) {
-    this.itemIds = (this.data.mergeGrid && this.data.mergeGrid.length === CELLS)
+    this.slots = (this.data.mergeGrid && this.data.mergeGrid.length === CELLS)
       ? [...this.data.mergeGrid]
       : new Array(CELLS).fill(null);
+    // 兼容旧存档：旧格式元素是 string|null，新格式是 MergeSlot，两种都合法
     this.build();
   }
 
-  open(): void { this.root.active = true; }
+  open(): void {
+    this.root.active = true;
+    this.startTick();
+    // 打开时立即结算一次（离线可能已有合成完成）
+    this.tick();
+  }
+
+  private startTick(): void {
+    if (this.tickTimer) clearInterval(this.tickTimer);
+    this.tickTimer = setInterval(() => this.tick(), 500);
+  }
+
+  private stopTick(): void {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
+  }
+
+  /** 每帧检查：合成中的格子是否已完成，完成则转为就绪 */
+  private tick(): void {
+    if (!this.root || !this.root.active) return;
+    let changed = false;
+    let completed = false;
+    for (let i = 0; i < CELLS; i++) {
+      const s = this.slots[i];
+      if (isPending(s)) {
+        if (Date.now() >= s.finishAt) {
+          // 合成完成！
+          this.slots[i] = s.resultId;
+          changed = true;
+          completed = true;
+          // 检查是否解锁了新菜
+          this.maybeUnlock(s.resultId);
+        }
+      }
+    }
+    if (completed) {
+      // 完成时有提示
+      this.toast('合成完成!', COLOR.green);
+    }
+    if (changed || this.slots.some(s => isPending(s))) {
+      this.renderGrid();
+      this.persist();
+    }
+  }
 
   private build(): void {
     // 布局自上而下：标题 → 合成链路图 → 素材商店 → 规则提示 → 4×4 格子
@@ -70,7 +118,7 @@ export class MergeView {
       if (!icon) makeLabel(`buy-ic-${i}`, btn, it?.glyph ?? '❓', 20, -26, 0, COLOR.text);
       makeLabel(`buy-price-${i}`, btn, `${offer.cost}🪙`, 13, 12, 0, COLOR.accent);
     });
-    makeLabel('merge-hint', this.root, '买素材放入格子 · 两两相同合成升阶 · 最高阶解锁新菜', 12, 0, 70, COLOR.subtext);
+    makeLabel('merge-hint', this.root, '买素材放入格子 · 两两相同合成（需等待）· 可花金币加速', 12, 0, 70, COLOR.subtext);
 
     const grid = makeNode('merge-grid', this.root, COLS * CELL_W, ROWS * CELL_H, 0, -80);
     const startX = -((COLS - 1) * CELL_W) / 2;
@@ -123,30 +171,80 @@ export class MergeView {
     const content = this.contents[i];
     if (!content) return;
     content.removeAllChildren();
-    const id = this.itemIds[i];
-    if (id) {
+    const slot = this.slots[i];
+
+    if (isPending(slot)) {
+      // 合成中：显示产出物半透明 + 进度条 + 剩余秒数
+      const resultIt = mergeItemById(slot.resultId);
+      const totalMs = mergeTimeFor(/* source: find by resultId's predecessor */ this.sourceIdFor(slot.resultId)) * 1000;
+      const remain = slot.finishAt - Date.now();
+      const remainSec = Math.max(0, Math.ceil(remain / 1000));
+      const pct = totalMs > 0 ? Math.max(0, 1 - remain / totalMs) : 1;
+
+      // 产出物图标（半透明表示还在"烹饪中"）
+      if (resultIt) {
+        const drew = resultIt.artKey
+          ? ArtService.makeSprite(content, resultIt.artKey, 40, 40, 0, 6, 'mi-pending') !== null
+          : false;
+        if (!drew && resultIt.glyph) makeLabel('mi-pending', content, resultIt.glyph, 26, 0, 6, new Color(255, 255, 255, 160));
+      }
+
+      // 进度条背景
+      const barW = CELL_W - 20;
+      const barH = 8;
+      roundRect(`bar-bg-${i}`, content, barW, barH, 0, -18, 4, new Color(40, 40, 40, 200), new Color(0, 0, 0, 0));
+      // 进度条填充
+      const fillW = Math.max(2, Math.round((barW - 2) * pct));
+      const fillColor = pct >= 1 ? COLOR.green : new Color(100, 180, 255, 220);
+      roundRect(`bar-fill-${i}`, content, fillW, barH - 2,
+        -(barW - fillW) / 2, -18, 3, fillColor, new Color(0, 0, 0, 0));
+
+      // 剩余秒数标签
+      if (pct < 1) {
+        makeLabel(`remain-${i}`, content, `${remainSec}s`, 11, 0, -28, COLOR.accent);
+      }
+      return;
+    }
+
+    // 就绪状态：显示物品
+    if (isReady(slot)) {
+      const id = slot;
       const it = mergeItemById(id);
       if (it) {
         const drew = it.artKey ? ArtService.makeSprite(content, it.artKey, 58, 58, 0, 0, 'mi') !== null : false;
         if (!drew && it.glyph) makeLabel('mi', content, it.glyph, 32, 0, 0, COLOR.text);
       }
+      if (i === this.selected) {
+        roundRect('sel', content, CELL_W - 4, CELL_H - 4, 0, 0, 10, new Color(0, 0, 0, 0), COLOR.primary);
+      }
+      // 最高阶成品：橙框 + 💰 角标，提示可出售
+      if (this.isFinal(id)) {
+        roundRect(`fin-ring-${i}`, content, CELL_W - 8, CELL_H - 8, 0, 0, 8,
+          new Color(0, 0, 0, 0), COLOR.accent);
+        makeLabel(`fin-tag-${i}`, content, '💰', 13, CELL_W / 2 - 16, -CELL_H / 2 + 13, COLOR.accent);
+      }
     }
-    if (i === this.selected) {
-      roundRect('sel', content, CELL_W - 4, CELL_H - 4, 0, 0, 10, new Color(0, 0, 0, 0), COLOR.primary);
+  }
+
+  /** 找到产出 resultId 对应的源 id（即 nextId === resultId 的那个） */
+  private sourceIdFor(resultId: string): string {
+    for (const base of MERGE_BASE_IDS) {
+      let cur: string | null = base;
+      while (cur) {
+        const it = mergeItemById(cur);
+        if (!it) break;
+        if (it.nextId === resultId) return cur;
+        cur = it.nextId;
+      }
     }
-    // 最高阶成品：橙框 + 💰 角标，提示可出售
-    if (id && this.isFinal(id)) {
-      roundRect(`fin-ring-${i}`, content, CELL_W - 8, CELL_H - 8, 0, 0, 8,
-        new Color(0, 0, 0, 0), COLOR.accent);
-      makeLabel(`fin-tag-${i}`, content, '💰', 13, CELL_W / 2 - 16, -CELL_H / 2 + 13, COLOR.accent);
-    }
+    return resultId;
   }
 
   /** 花金币买一个基础素材放入第一个空格；金币不足或格子已满时不扣钱 */
   private buy(baseId: string): void {
     const offer = BASE_OFFERS.find(o => o.id === baseId);
     if (!offer) return;
-    const idx = this.itemIds.findIndex(id => id === null);
+    const idx = this.findEmptySlot();
     if (idx === -1) {
       this.toast('格子已满，先合成腾出空格', COLOR.subtext);
       return;
@@ -155,7 +253,7 @@ export class MergeView {
       this.toast('金币不足，先招待几位客人吧', COLOR.red);
       return;
     }
-    this.itemIds[idx] = baseId;
+    this.slots[idx] = baseId;
     this.persist();
     this.renderGrid();
   }
@@ -167,16 +265,20 @@ export class MergeView {
       this.toast(`生成器冷却中 ${Math.ceil((this.genCdEnd - now) / 1000)}s`, COLOR.subtext);
       return;
     }
-    const idx = this.itemIds.findIndex(id => id === null);
+    const idx = this.findEmptySlot();
     if (idx === -1) {
       this.toast('格子已满，先合成腾出空格', COLOR.subtext);
       return;
     }
     const baseId = MERGE_BASE_IDS[Math.floor(Math.random() * MERGE_BASE_IDS.length)];
-    this.itemIds[idx] = baseId;
+    this.slots[idx] = baseId;
     this.genCdEnd = now + 30000;
     this.persist();
     this.renderGrid();
+  }
+
+  private findEmptySlot(): number {
+    return this.slots.findIndex(s => s === null);
   }
 
   private toast(text: string, color: Color): void {
@@ -197,11 +299,33 @@ export class MergeView {
   }
 
   private onCellTap(i: number): void {
-    const id = this.itemIds[i];
+    const slot = this.slots[i];
+
+    // 合成中的格子：点击 → 加速选项
+    if (isPending(slot)) {
+      const remainSec = Math.max(0, Math.ceil((slot.finishAt - Date.now()) / 1000));
+      if (remainSec <= 0) {
+        this.tick(); // 应该已完成
+        return;
+      }
+      const cost = rushCost(remainSec);
+      if (this.data.spend(cost)) {
+        this.slots[i] = slot.resultId; // 立即完成
+        this.toast(`加速完成! -${cost}🪙`, COLOR.accent);
+        this.maybeUnlock(slot.resultId);
+        this.persist();
+        this.renderGrid();
+      } else {
+        this.toast(`金币不足 · 加速需 ${cost}🪙`, COLOR.red);
+      }
+      return;
+    }
+
+    const id = isReady(slot) ? slot : null;
+
     if (this.selected === -1) {
       if (id) {
         this.selected = i;
-        // 最高阶成品不能再合成：提示并进入出售流程（再点一次卖出）
         if (this.isFinal(id)) {
           this.toast(`已研发完成 · 再点一次出售 +${this.sellValue(id)}🪙`, COLOR.accent);
         }
@@ -209,22 +333,28 @@ export class MergeView {
     } else if (this.selected === i) {
       if (this.isFinal(id)) {
         const v = this.sellValue(id);
-        this.data.coins += v;
-        this.itemIds[i] = null;
+        this.data.earn(v);
+        this.slots[i] = null;
         this.selected = -1;
         this.toast(`成品售出 +${v}🪙`, COLOR.accent);
       } else {
         this.selected = -1;
       }
     } else {
-      const selId = this.itemIds[this.selected];
+      const selSlot = this.slots[this.selected];
+      const selId = isReady(selSlot) ? selSlot : null;
       if (id && selId && id === selId && !this.isFinal(id)) {
         const next = mergeNext(id);
         if (next) {
-          this.itemIds[i] = next;
-          this.itemIds[this.selected] = null;
+          // 合成开始：源格清空，目标格进入 pending 状态
+          const timeSec = mergeTimeFor(id);
+          this.slots[i] = {
+            resultId: next,
+            finishAt: Date.now() + timeSec * 1000,
+          };
+          this.slots[this.selected] = null;
           this.selected = -1;
-          this.maybeUnlock(next);
+          this.toast(`合成中 · ${timeSec}s`, COLOR.subtext);
         } else {
           this.selected = -1;
         }
@@ -249,12 +379,13 @@ export class MergeView {
   }
 
   private persist(): void {
-    this.data.mergeGrid = [...this.itemIds];
+    this.data.mergeGrid = [...this.slots];
     this.save();
   }
 
   private close(): void {
     this.persist();
+    this.stopTick();
     this.root.active = false;
   }
 }

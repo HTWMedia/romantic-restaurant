@@ -1,7 +1,7 @@
 # 暖柒餐厅 Romantic Restaurant 🍳
 
 ![Cocos Creator](https://img.shields.io/badge/Cocos%20Creator-3.8.8-blue)
-![Tests](https://img.shields.io/badge/tests-40%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![Code](https://img.shields.io/badge/code-MIT-yellow)
 ![Assets](https://img.shields.io/badge/art-CC%20BY%204.0-orange)
 
@@ -20,19 +20,25 @@
 ## ✨ 玩法特色
 
 - **餐厅经营**：顾客上门点单 → 菜谱做菜 → 厨房多槽位并行烹饪 → 上菜收款；连击倍率、满意度衰减、体力闸口 + 激励广告回满
-- **合成研发台**：金币购买素材、免费生成器，两两合成升阶，四条研发链最终解锁新菜；成品可出售回血
+- **VIP 顾客系统**：美食博主、神秘明星、街角老伯、美食品鉴家等特殊顾客随机出现——收入翻倍但耐心更短，考验快速应变
+- **每日任务系统**：每 3 分钟刷新一组任务（招待/赚金/连击/满意/做菜），完成领取金币奖励，HUD 角标提醒
+- **粒子特效 + 屏幕震动**：上菜金币飞溅、满意顾客星星弹跳和爱心升起、做菜完成蒸汽扩散、连击达成闪光环、不同强度的屏幕震动反馈
+- **合成研发台（含时间机制）**：金币购买素材、免费生成器，两两合成升阶，四条研发链最终解锁新菜；合成需**等待时间**（低阶 5 秒、高阶 15 秒），可花金币加速完成——还原《浪漫餐厅》的"等待→收获"节奏感
 - **研发链路卡**：点击顾客订单即可查看这道菜"从素材到成品"的完整合成路径（致敬《浪漫餐厅》的同款设计）
 - **五章主线剧情**：数据驱动的章节目标 + 通关奖励 + 角色对话；合成解锁新菜时自动触发剧情反应
-- **装修系统**：五套水彩装修，各自带真实经营加成（顾客耐心 / 收入 / 烹饪速度）
+- **装修系统**：五套水彩装修 + 12 件独立装饰品，各自带真实经营加成（顾客耐心 / 收入 / 烹饪速度 / 小费 / 体力）
 - **升级系统**：桌位、厨房多级成长，升级前可预览下一级奖励
+- **🔴 直播聊天功能**：点击 HUD 的 💬 按钮进入小柒的直播间——AI 驱动的实时对话，支持文字聊天与语音朗读（浏览器 Web Speech API），小柒会根据聊天内容切换表情帧（idle / say / happy）
 
 ## 🛠 技术要点
 
 - Cocos Creator **3.8.8**，全部 UI 由代码即时构建（Graphics / Label），无预制体依赖
 - 数据驱动：章节、装修、合成链、美术清单均为 TS 数据表，加内容不改逻辑
-- 核心逻辑与视图分离，**40 个单元测试**（vitest）覆盖数据层
+- 核心逻辑与视图分离，**71 个单元测试**（vitest）覆盖数据层
 - 平台适配层：存储与激励广告已抽象，浏览器 / 微信小游戏按环境自动切换（[core/platform.ts](assets/scripts/core/platform.ts)）
-- 配套工具脚本：美术透明度校验、批量压缩、合成图生成（[tools/](tools/)）
+- 合成时间机制：`MergeSlot` 类型支持"就绪 / 合成中 / 空闲"三态，存档记录时间戳实现离线合成进度
+- 直播聊天：`ChatService` 通过 HTTP 调用后端 LLM 接口，带超时与历史截断；`ChatView` 含表情帧切换、语音合成、语音输入
+- 配套工具脚本：美术透明度校验、批量压缩、合成图生成、装饰品占位图生成（[tools/](tools/)）
 - 开发过程笔记（四层设计拆解）见 [docs/README-dev-notes.md](docs/README-dev-notes.md)
 
 ## 🚀 本地运行
@@ -48,16 +54,25 @@
 - **本地一键发布**：`powershell -File tools/release-play.ps1`（构建 → 拷贝 → 推送一条龙，需本机装有 Cocos Creator）；
 - **CI 自动构建**：在 GitHub 上手动触发 `Deploy Play` workflow（首次需在仓库 Variables 配置 `COCOS_CREATOR_ZIP_URL` 编辑器直链，见 workflow 文件注释）。修改 `assets/` 后推送到 main 也会自动触发。
 
+## 🔴 直播聊天部署
+
+直播功能依赖后端 LLM 代理服务（`ChatService` 通过 HTTP POST 调用 `{baseUrl}/api/backend/chat`）。
+
+- **前端**：`ChatView` 自动检测 `fetch` 可用性，无网络时降级为本地闲聊模式
+- **后端**：需自行部署 LLM 代理服务（接收 `{ prompt }` 返回 `{ result }`），端点地址在 `Main.ts` 的 `CHAT_BASE` 常量中配置
+- **浏览器要求**：语音朗读需 `SpeechSynthesis` 支持（Chrome / Edge），语音输入需 `SpeechRecognition` 支持
+
 ## 📁 目录结构
 
 ```
 assets/
   resources/art/    # 全部美术资源（AI 生成，见 docs/ai-art-prompts.md）
-  scripts/core/     # 数据层：章节、装修、合成链、存档、平台适配
-  scripts/ui/       # 视图层：餐厅、厨房、合成台、升级、装修、对话等
+  scripts/core/     # 数据层：章节、装修、合成链、存档、平台适配、特殊顾客、每日任务、聊天服务
+  scripts/services/ # 音效、事件总线
+  scripts/ui/       # 视图层：餐厅、厨房、合成台、升级、装修、对话、粒子特效、任务面板、直播聊天等
   scenes/           # 场景
 tests/              # vitest 单元测试
-tools/              # 出图管线脚本（透明度校验 / 压缩 / 占位图）
+tools/              # 出图管线脚本（透明度校验 / 压缩 / 合成图 / 装饰品占位图）
 docs/               # 文档与 Web 构建产物（GitHub Pages）
 ```
 

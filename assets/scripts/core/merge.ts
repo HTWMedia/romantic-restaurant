@@ -10,6 +10,40 @@ export interface MergeItem {
   cost?: number;  // 基础素材的购入价格（合成台商店）
 }
 
+/** 合成所需秒数：tier 越高越慢，模拟"烹饪等待" */
+export function mergeTimeFor(id: string): number {
+  const it = BY_ID[id];
+  if (!it || !it.nextId) return 0;
+  // 基础→中间：5秒；中间→成品：15秒
+  if (it.tier === 0) return 5;
+  if (it.tier === 1) return 15;
+  return 10;
+}
+
+/** 加速费：每剩余秒 2 金币，最低 1 */
+export function rushCost(remainSec: number): number {
+  return Math.max(1, Math.ceil(remainSec * 2));
+}
+
+/** 合成中的格子状态：记录产出 id + 完成时间戳 */
+export interface MergeSlotPending {
+  resultId: string;
+  finishAt: number;  // Date.now() 时间戳
+}
+
+/** 合成台格子：空闲(null) | 已就绪(id 字符串) | 合成中(对象) */
+export type MergeSlot = string | MergeSlotPending | null;
+
+/** 判断某格是否合成中 */
+export function isPending(slot: MergeSlot): slot is MergeSlotPending {
+  return slot !== null && typeof slot === 'object';
+}
+
+/** 判断某格是否就绪（非 null 非 pending） */
+export function isReady(slot: MergeSlot): slot is string {
+  return slot !== null && typeof slot === 'string';
+}
+
 export const MERGE_ITEMS: MergeItem[] = [
   // 链 A → pizza（ing-* 为程序占位图，正式素材按 docs/ai-art-prompts.md 重出）
   { id: 'm-veg',    name: '蔬菜',   glyph: '🥬', artKey: 'ing-veg', tier: 0, nextId: 'm-salad', cost: 12 },

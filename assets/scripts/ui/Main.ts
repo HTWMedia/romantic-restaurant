@@ -25,11 +25,17 @@ import { CHAPTERS, DISH_UNLOCK_SCRIPT } from '../core/chapters';
 import { ChatService } from '../core/chat';
 import { ChatView } from './ChatView';
 import { skinById } from '../core/skins';
+import { decorById } from '../core/decor';
 import { ENERGY_MAX, ENERGY_REGEN_SEC } from '../core/gameData';
 import { COLOR, makeLabel, makeNode, makeRect, roundRect } from './Widgets';
 import { ArtService } from './ArtView';
 import { CUSTOMER_ART } from '../core/art';
 import { Sfx } from '../services/Sfx';
+import { ParticleFx } from './ParticleFx';
+import { ScreenShake } from './ScreenShake';
+import { QuestView } from './QuestView';
+import { shouldSpawnVip, rollVip } from '../core/specialCustomer';
+import { QuestBoard, createBoard, maybeRefresh, reportEvent, claimReward, hasClaimable } from '../core/quests';
 
 const { ccclass } = _decorator;
 
@@ -63,6 +69,9 @@ export class Main extends Component {
   private orderBoard!: Node;
   private orderList!: Node;
   private orderSig = '';
+  private questView!: QuestView;
+  private questBoard!: QuestBoard;
+  private fxLayer!: Node;
 
   onLoad(): void {
     this.storage = new StorageService(createKVStore());
@@ -77,13 +86,17 @@ export class Main extends Component {
   private buildGame(): void {
     this.buildBackground();
     this.gameLayer = makeNode('game-layer', this.node, 960, 640, 0, 0);
+    this.fxLayer = makeNode('fx-layer', this.node, 960, 640, 0, 0);
+    ParticleFx.setRoot(this.fxLayer);
+    ScreenShake.setTarget(this.gameLayer);
     this.buildDecor();
     this.buildTables();
 
     this.kitchen = new Kitchen(
       this.node, 340, -70,
       d => cookTimeAtLevel(d.cookTime, this.data.kitchenLevel) *
-        (1 - skinById(this.data.activeSkinId).bonus.cook * 0.1),
+        (1 - skinById(this.data.activeSkinId).bonus.cook * 0.1) *
+        this.data.cookTimeMultiplier,
       kitchenSlotCount(this.data.kitchenLevel),
     );
     this.kitchen.onSlotReady = () => Sfx.cook();
@@ -97,6 +110,7 @@ export class Main extends Component {
       () => this.onAdButton(),
       () => this.merge.open(),
       () => this.chatView.open(),
+      () => this.openQuests(),
     );
     this.hud.setCombo(0, 1);
 
@@ -131,6 +145,7 @@ export class Main extends Component {
       () => { this.refreshHud(); this.saveGame(); },
     );
     this.applySkin();
+    this.applyDecor();
 
     const chatService = new ChatService({ baseUrl: CHAT_BASE });
     this.chatView = new ChatView(this.node, chatService, typeof fetch === 'function');
@@ -153,6 +168,21 @@ export class Main extends Component {
 
     this.orderBoard = ArtService.panelWithArt('order-board', this.node, 'panel-orderboard', 920, 40, 0, 235);
     this.orderList = makeNode('order-list', this.orderBoard, 920, 40, 0, 0);
+
+    // 任务系统：从存档恢复或新建
+    this.questView = new QuestView(this.node);
+    if (this.data.questBoardJson) {
+      try {
+        const saved = JSON.parse(this.data.questBoardJson);
+        this.questBoard = maybeRefresh(saved);
+      } catch {
+        this.questBoard = createBoard();
+      }
+    } else {
+      this.questBoard = createBoard();
+    }
+    this.questView.updateBadge(this.questBoard);
+
     this.refreshAll();
   }
 
@@ -174,6 +204,14 @@ export class Main extends Component {
       }
     }
     this.adView.update(dt);
+    ParticleFx.update(dt);
+    // 任务面板定时刷新
+    const refreshed = maybeRefresh(this.questBoard);
+    if (refreshed !== this.questBoard) {
+      this.questBoard = refreshed;
+      this.questView.updateBadge(this.questBoard);
+      this.saveQuests();
+    }
   }
 
   private cookSelected(id: string): void {
@@ -194,6 +232,10 @@ export class Main extends Component {
       DISHES.filter(d => !this.data.dishUnlocked(d.id)),
       this.data.coins,
     );
+    // 任务：做特定菜
+    this.questBoard = reportEvent(this.questBoard, 'cook_dish', 1, id);
+    this.questView.updateBadge(this.questBoard);
+    this.saveQuests();
     this.refreshHud();
     this.saveGame();
   }
@@ -326,7 +368,15 @@ export class Main extends Component {
       d => RecipeCard.show(this.node, d, this.data),
     );
     // 装修加成：顾客更有耐心（等待时间更长）
-    c.setPatience(1 + skinById(this.data.activeSkinId).bonus.wait * 0.1);
+    c.setPatience(
+      (1 + skinById(this.data.activeSkinId).bonus.wait * 0.1) *
+      (1 + this.data.patienceBonusPct / 100)
+    );
+    // VIP 顾客：概率出现，更高收入但耐心更短
+    if (shouldSpawnVip()) {
+      const vip = rollVip();
+      c.setVip(vip);
+    }
       // 顾客坐桌后：插到桌子节点之下，桌沿遮挡其下半身，形成前后纵深
       c.node.setSiblingIndex(table.node.getSiblingIndex());
       this.customers.push(c);
@@ -362,13 +412,43 @@ export class Main extends Component {
     this.combo++;
     const mult = this.comboMultiplier();
     const bonus = skinById(this.data.activeSkinId).bonus;
-    const pay = Math.round(c.paid * mult * (1 + bonus.coin * 0.1));
+    const pay = Math.round(c.paid * mult * (1 + bonus.coin * 0.1) * this.data.coinMultiplier);
     this.data.earn(pay);
     this.data.servedTotal++;
     if (c.satisfaction >= 70) this.data.happyTotal++;
+    // 历史最高连击
+    if (this.combo > this.data.bestCombo) this.data.bestCombo = this.combo;
     Sfx.coin();
     c.showPay(pay);
     this.hud.setCombo(this.combo, mult);
+    // 粒子特效 + 屏幕震动
+    const cx = c.node.position.x;
+    const cy = c.node.position.y + 50;
+    ParticleFx.coinBurst(cx, cy, c.vipType ? 12 : 6);
+    if (c.satisfaction >= 70) {
+      ParticleFx.starBurst(cx, cy + 40, 4);
+      ParticleFx.heartsUp(cx, cy + 30, 3);
+    }
+    if (this.combo >= 3) {
+      ParticleFx.flashRing(cx, cy);
+      ScreenShake.shake(this.combo >= 6 ? 6 : 3, 0.2);
+    } else {
+      ScreenShake.shake(2, 0.12);
+    }
+    // VIP 顾客额外特效
+    if (c.vipType) {
+      ParticleFx.flashRing(cx, cy, new Color(255, 201, 77, 255));
+      ScreenShake.shake(8, 0.3);
+    }
+    // 任务上报
+    this.questBoard = reportEvent(this.questBoard, 'serve', 1);
+    this.questBoard = reportEvent(this.questBoard, 'earn', pay);
+    this.questBoard = reportEvent(this.questBoard, 'combo', this.combo);
+    if (c.satisfaction >= 70) {
+      this.questBoard = reportEvent(this.questBoard, 'happy', 1);
+    }
+    this.questView.updateBadge(this.questBoard);
+    this.saveQuests();
     this.refreshHud();
     this.saveGame();
     this.checkChapter();
@@ -414,6 +494,24 @@ export class Main extends Component {
       this.data.coins,
     );
     this.refreshHud();
+  }
+
+  private openQuests(): void {
+    this.questView.open(this.questBoard,
+      reward => {
+        this.data.earn(reward);
+        Sfx.coin();
+        ParticleFx.coinBurst(0, 0, 16);
+        this.refreshHud();
+        this.saveGame();
+      },
+      () => { this.saveQuests(); },
+    );
+  }
+
+  private saveQuests(): void {
+    this.data.questBoardJson = JSON.stringify(this.questBoard);
+    this.saveGame();
   }
 
   private refreshOrderBoard(): void {
@@ -488,6 +586,23 @@ export class Main extends Component {
     }
   }
 
+  /** 在皮肤装饰之上叠加玩家购买的独立装饰品 */
+  private applyDecor(): void {
+    // 先移除旧装饰品节点（保留皮肤本身的 decorNodes）
+    for (const n of this.decorNodes) {
+      if (n.name?.startsWith('idecor-')) n.destroy();
+    }
+    this.decorNodes = this.decorNodes.filter(n => !n.name?.startsWith('idecor-'));
+    // 放入已购买的独立装饰品
+    for (const id of this.data.ownedDecorIds) {
+      const d = decorById(id);
+      if (!d) continue;
+      const l = makeLabel(`idecor-${d.id}`, this.node, d.emoji, 36, d.x, d.y, COLOR.text);
+      l.node.setSiblingIndex(3);
+      this.decorNodes.push(l.node);
+    }
+  }
+
   private refreshUpgrade(): void {
     this.upgrade.refresh({
       coins: this.data.coins,
@@ -498,6 +613,17 @@ export class Main extends Component {
       tableMaxed: this.data.tableLevel >= 5,
       kitchenMaxed: this.data.kitchenLevel >= 5,
     });
+    this.upgrade.refreshDecor(
+      this.data.ownedDecorIds,
+      this.data.coins,
+      (id: string) => {
+        if (this.data.buyDecor(id)) {
+          this.applyDecor();
+          this.refreshAll();
+          if (this.upgrade.isOpen) this.refreshUpgrade();
+        }
+      },
+    );
   }
 
   private saveGame(): void {

@@ -1,5 +1,7 @@
 import { DISHES } from './dishes';
 import { SKINS } from './skins';
+import { MergeSlot } from './merge';
+import { decorById, DecorBonusType } from './decor';
 import { SaveData } from './types';
 
 export const SAVE_VERSION = 1;
@@ -50,6 +52,7 @@ export function createDefaultSave(): SaveData {
     ownedSkinIds: ['classic'],
     activeSkinId: 'classic',
     mergeGrid: [],
+    ownedDecorIds: [],
   };
 }
 
@@ -66,7 +69,10 @@ export class GameData {
   energy: number;
   ownedSkinIds: string[];
   activeSkinId: string;
-  mergeGrid: (string | null)[] = [];
+  mergeGrid: MergeSlot[] = [];
+  bestCombo: number = 0;
+  questBoardJson: string = '';
+  ownedDecorIds: string[] = [];
 
   constructor(save?: SaveData | null) {
     const base = save ?? createDefaultSave();
@@ -83,6 +89,10 @@ export class GameData {
     this.ownedSkinIds = (base as any).ownedSkinIds ?? ['classic'];
     this.activeSkinId = (base as any).activeSkinId ?? 'classic';
     this.mergeGrid = (base as any).mergeGrid ?? [];
+    // 旧存档兼容：全部是 string|null，直接可用；如果有 object 说明已是新格式
+    this.bestCombo = (base as any).bestCombo ?? 0;
+    this.questBoardJson = (base as any).questBoardJson ?? '';
+    this.ownedDecorIds = (base as any).ownedDecorIds ?? [];
   }
 
   get availableDishes(): typeof DISHES {
@@ -149,6 +159,62 @@ export class GameData {
     return true;
   }
 
+  // —— 装饰品系统 ——
+  decorOwned(id: string): boolean {
+    return this.ownedDecorIds.indexOf(id) !== -1;
+  }
+
+  canBuyDecor(id: string): boolean {
+    const d = decorById(id);
+    if (!d || this.decorOwned(id)) return false;
+    return this.canSpend(d.cost);
+  }
+
+  buyDecor(id: string): boolean {
+    const d = decorById(id);
+    if (!d || !this.canBuyDecor(id)) return false;
+    this.spend(d.cost);
+    this.ownedDecorIds.push(id);
+    return true;
+  }
+
+  /** 所有已拥有装饰品的加成汇总 */
+  decorBonus(): Record<DecorBonusType, number> {
+    const totals: Record<DecorBonusType, number> = {
+      coin: 0, patience: 0, cook: 0, tip: 0, energy: 0,
+    };
+    for (const id of this.ownedDecorIds) {
+      const d = decorById(id);
+      if (d) totals[d.bonus.type] += d.bonus.value;
+    }
+    return totals;
+  }
+
+  /** 收入加成乘数（如 +15% 返回 1.15） */
+  get coinMultiplier(): number {
+    return 1 + this.decorBonus().coin / 100;
+  }
+
+  /** 顾客耐心加成百分比 */
+  get patienceBonusPct(): number {
+    return this.decorBonus().patience;
+  }
+
+  /** 烹饪时间减免乘数（如 -10% 返回 0.90） */
+  get cookTimeMultiplier(): number {
+    return Math.max(0.5, 1 - this.decorBonus().cook / 100);
+  }
+
+  /** 小费概率加成百分比 */
+  get tipBonusPct(): number {
+    return this.decorBonus().tip;
+  }
+
+  /** 体力恢复减少秒数 */
+  get energyRegenReduction(): number {
+    return this.decorBonus().energy;
+  }
+
   canUpgradeTable(): boolean {
     return this.tableLevel < TABLE_LEVEL_MAX && this.canSpend(tableUpgradeCost(this.tableLevel));
   }
@@ -187,6 +253,9 @@ export class GameData {
       ownedSkinIds: [...this.ownedSkinIds],
       activeSkinId: this.activeSkinId,
       mergeGrid: this.mergeGrid,
+      bestCombo: this.bestCombo,
+      questBoardJson: this.questBoardJson,
+      ownedDecorIds: [...this.ownedDecorIds],
     };
   }
 }

@@ -37,3 +37,7 @@ __pycache__/
 
 # Web 构建产物：按二进制原样处理，不做行尾转换
 docs/play/** -text
+
+# IDE / 工具追踪目录
+.opencode-trace/
+.codebuddy/
